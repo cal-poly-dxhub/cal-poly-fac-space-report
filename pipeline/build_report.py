@@ -5,10 +5,9 @@ Reimplements the aggregation that Planon's DAM module performed, following the
 paths documented in ../report-column-paths.md and the step order in
 ../report-algorithm.md.
 
-    python3 build_report.py                          # current snapshot
-    python3 build_report.py --ref-date 2025-06-30    # as of a date
-    python3 build_report.py --verify                 # compare to the golden PDF
-    python3 build_report.py --sweep                  # try a range of ref dates
+    python3 build_report.py --ref-date 2026-09-10
+
+Check the output against Planon's own export with compare.py.
 
 Data comes from a DataSource. Today that is LocalSource, reading the CSV mirror
 in ../source_data/. ODataSource is the seam where the live Planon calls go; the
@@ -402,20 +401,6 @@ def print_summary(rows: list[dict]) -> None:
     print(f"  {'GRAND TOTAL':<32} {count:>6} {gsf:>14,} {asf:>14,}")
 
 
-GOLDEN = {"count": 137, "gsf": 6748681, "asf": 3612611}
-
-
-def compare(rows: list[dict]) -> None:
-    count, gsf, asf = totals(rows)
-    print(f"\n  {'':<12} {'ours':>14} {'golden':>14} {'delta':>14}")
-    for label, mine, want in [
-        ("facilities", count, GOLDEN["count"]),
-        ("GSF", gsf, GOLDEN["gsf"]),
-        ("ASF", asf, GOLDEN["asf"]),
-    ]:
-        print(f"  {label:<12} {mine:>14,} {want:>14,} {mine - want:>+14,}")
-
-
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default=os.path.join(ROOT, "source_data"))
@@ -430,28 +415,12 @@ def main(argv=None) -> int:
     parser.add_argument("--out",
                         default=os.path.join(ROOT,
                                              "report.csv"))
-    parser.add_argument("--verify", action="store_true",
-                        help="compare totals against the golden document")
-    parser.add_argument("--sweep", action="store_true",
-                        help="try a range of reference dates and report deltas")
     parser.add_argument("--drop-archived", action="store_true",
                         help="also drop facilities whose anchor is archived")
     args = parser.parse_args(argv)
 
     source = LocalSource(args.source)
     centers = [c.strip() for c in args.centers.split(",") if c.strip()]
-
-    if args.sweep:
-        print(f"  {'ref date':<12} {'count':>7} {'GSF delta':>13} {'ASF delta':>13}")
-        dates = [f"{y}-{m}" for y in (2025, 2026)
-                 for m in ("03-31", "06-30", "09-30", "12-31")]
-        for date in dates:
-            report = Report(source, date, centers, args.drop_archived)
-            rows = report.build()
-            count, gsf, asf = totals(rows)
-            print(f"  {str(date):<12} {count:>7} "
-                  f"{gsf - GOLDEN['gsf']:>+13,} {asf - GOLDEN['asf']:>+13,}")
-        return 0
 
     report = Report(source, args.ref_date, centers, args.drop_archived)
     rows = report.build()
@@ -461,8 +430,6 @@ def main(argv=None) -> int:
     print(f"  centers  : no filter (all centers reported, blanks included)")
     print(f"  wrote    : {args.out}  ({len(rows)} rows)")
     print_summary(rows)
-    if args.verify:
-        compare(rows)
 
     if report.problems:
         counts: dict[str, int] = defaultdict(int)
