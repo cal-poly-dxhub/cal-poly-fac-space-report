@@ -8,7 +8,7 @@ Aggregation Manager before it retires in December 2026.
 | | |
 | --- | --- |
 | `report-column-paths.md` | Where each report column comes from |
-| `pipeline/` | The pipeline, plus two scripts that diff our output against Planon's |
+| `pipeline/` | The pipeline, plus a script that diffs our output against Planon's |
 | `connector/` | OData client for pulling Planon tables |
 | `source_data/` | (When pulled) Local mirror of the five source tables. Create locally using script below. |
 | `planon-reference.csv` | (When added) Planon's own output. Not in the repo, add manually in order to run compare.py. |
