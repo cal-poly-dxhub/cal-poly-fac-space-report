@@ -8,6 +8,7 @@ Aggregation Manager before it retires in December 2026.
 | | |
 | --- | --- |
 | `report-column-paths.md` | Where each report column comes from |
+| `docs/aws-deployment.drawio` | Proposed AWS deployment diagram. Design only, nothing is deployed yet. |
 | `pipeline/` | The pipeline, plus a script that diffs our output against Planon's |
 | `connector/` | OData client for pulling Planon tables |
 | `source_data/` | (When pulled) Local mirror of the five source tables. Create locally using script below. |
