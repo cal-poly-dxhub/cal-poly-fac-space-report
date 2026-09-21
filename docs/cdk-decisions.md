@@ -65,3 +65,20 @@ in the order the pieces were built.
 - **The stack does not upload the page.** The page does not exist yet, and
   `BucketDeployment` adds another custom-resource Lambda. Upload with
   `aws s3 sync`; the `SiteBucketName` and `SiteUrl` outputs are there for that.
+
+## 3. Data bucket
+
+- **Fully private: all public access blocked, SSE-S3, TLS-only policy, no CORS.**
+  Nothing outside the account reads it directly. How the browser's step 4 poll
+  reaches the marker without making anything public is decided in section 8.
+- **SSE-S3, not a KMS key.** Building names and square footage are not regulated
+  data. A customer key adds a monthly charge and a key policy to maintain. One
+  line to change if campus security wants KMS.
+- **No versioning, no lifecycle rules.** The diagram says "current copy, replaced
+  by each pull", and Planon stays the system of record, so a bad copy is fixed by
+  pulling again. Overwritten objects leave nothing to expire.
+- **Key layout: `tables/<Table>.csv` and `marker/complete.json`.** Constants at
+  the top of `stack.py`, handed to the Lambdas as environment variables so the
+  layout is written down once. The marker is JSON so it can carry the pull's
+  finish time, which the page needs to tell a new marker from the previous one.
+- **Default `RETAIN`, same reasoning as the site bucket.**

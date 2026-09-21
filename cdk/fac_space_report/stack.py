@@ -5,6 +5,11 @@ from aws_cdk import aws_s3 as s3
 from constructs import Construct
 
 
+# Layout of the data bucket, shared by both Lambdas and the API.
+TABLES_PREFIX = "tables/"
+MARKER_KEY = "marker/complete.json"
+
+
 class FacSpaceReportStack(Stack):
     """Everything inside the "AWS account" box of docs/aws-deployment.drawio."""
 
@@ -33,5 +38,16 @@ class FacSpaceReportStack(Stack):
         )
         self.site_url = f"https://{site.distribution_domain_name}"
 
+        # "S3 data bucket": the current copy of the five tables plus the completion
+        # marker. Each pull overwrites the last, so there is no versioning.
+        data_bucket = s3.Bucket(
+            self,
+            "DataBucket",
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            enforce_ssl=True,
+        )
+
         CfnOutput(self, "SiteUrl", value=self.site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)
+        CfnOutput(self, "DataBucketName", value=data_bucket.bucket_name)
