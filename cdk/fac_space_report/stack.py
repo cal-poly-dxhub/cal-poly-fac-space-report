@@ -143,7 +143,6 @@ class FacSpaceReportStack(Stack):
             code=bundle("pull", "connector/planon_odata.py"),
             memory_size=512,
             timeout=Duration.minutes(15),
-            tracing=lambda_.Tracing.ACTIVE,
             # A failed pull is retried by clicking Refresh again, not behind the owner's back.
             retry_attempts=0,
             log_group=logs.LogGroup(
@@ -173,7 +172,6 @@ class FacSpaceReportStack(Stack):
             memory_size=1024,
             # API Gateway gives up on an integration after 29 seconds by default.
             timeout=Duration.seconds(29),
-            tracing=lambda_.Tracing.ACTIVE,
             log_group=logs.LogGroup(
                 self, "BuildLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
             ),
@@ -293,7 +291,6 @@ class FacSpaceReportStack(Stack):
                 # One owner, and every Refresh is a full Planon pull.
                 throttling_rate_limit=5,
                 throttling_burst_limit=10,
-                tracing_enabled=True,
                 **api_logging,
             ),
         )

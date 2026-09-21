@@ -168,9 +168,10 @@ in the order the pieces were built.
 - **Permissions via L2 grants: read this one secret; write `tables/*` and the
   marker key.** `grant_write` includes a few tagging and legal-hold actions the
   handler does not use. Kept for readability; they do nothing on this bucket.
-- **X-Ray active tracing on, on both functions.** Reverses an earlier "no X-Ray".
-  One setting each, it clears Security Hub Lambda.7, and a trace is the quickest
-  way to see where a slow pull spent its time. Volume is a few hundred traces a year.
+- **No X-Ray, on the functions or the API stage. Kyle's call, 2026-09-21.** It was
+  turned on during the standards review and taken out again: tracing earns nothing
+  on something run about twice a year, and the log groups already say where a slow
+  pull spent its time. Security Hub Lambda.7 and APIGateway.3 will flag it.
 - **No VPC. This assumes `planon.calpoly.edu` answers from the public
   internet.** If it is campus-only, this function needs a VPC with a route to
   campus, and that is a diagram change. **Unverified. Check before deploying.**
@@ -335,9 +336,8 @@ in the order the pieces were built.
   other logs, so until it is on their failures show up only as a 502 to the page.
   Security Hub APIGateway.1 flags it while off. Both positions synthesize cleanly.
 - **`REQUIRE_MFA` is the same kind of switch**, so the two first-deploy shortcuts
-  sit together at the top of `stack.py`. X-Ray stays on: it needs no account setup
-  and clears APIGateway.3. The Lambda log groups stay on: they need no setup and
-  are where a failed pull or build explains itself.
+  sit together at the top of `stack.py`. The Lambda log groups stay on: they need
+  no setup and are where a failed pull or build explains itself.
 - **Stage is `prod`; no custom domain, API keys or usage plan.** None are in the
   diagram. Cognito is the access control.
 - **`cdk/README.md` documents the three calls.** The page is not written yet, and
@@ -352,8 +352,7 @@ resource the diagram already has was adopted; one that needs a new component, a
 monthly charge, or a campus decision is listed here instead.**
 
 Adopted because of that review: bucket versioning and lifecycle (S3.10, S3.13,
-S3.14), pool deletion protection (Cognito.6), X-Ray
-(Lambda.7, APIGateway.3), packaged `boto3`.
+S3.14), pool deletion protection (Cognito.6), packaged `boto3`.
 Already passing: S3.2, S3.3, S3.5, S3.8, CloudFront.1, CloudFront.3, CloudFront.13,
 Cognito.3, Lambda.1, Lambda.2.
 
@@ -374,4 +373,5 @@ Accepted. Security Hub will flag these, and each is a decision for campus, not a
 | **APIGateway.1** | API execution logging | **Off for the first deploy, Kyle's call. Not meant to stay off. See section 8.** |
 | Cognito.1, Cognito.4 | Threat protection | See section 7. |
 | Lambda.3 | Functions in a VPC | See the VPC entry in section 5. |
+| Lambda.7, APIGateway.3 | X-Ray tracing | Kyle's call: not worth it for something run about twice a year. See section 5. |
 | APIGateway.2 | Client certificate for the backend | Both backends are AWS services called with IAM credentials; a client certificate is never presented. |
