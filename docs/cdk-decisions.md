@@ -152,10 +152,16 @@ in the order the pieces were built.
 - **No reserved concurrency.** It would stop two overlapping pulls, but the Lambda
   quotas page warns that new accounts start with reduced concurrency, and reserving
   from a small pool can fail the deploy. Overlapping pulls write the same data to
-  the same keys, so the damage is nil.
-- **Marker is deleted first and written last; failures write nothing.** A poll can
-  then never mistake the previous pull for this one. A failed pull shows up as a
-  marker that never arrives, plus the error in the log group.
+  the same keys. One real gap: if pull A writes its marker while pull B is still
+  rewriting tables, a poll says "complete" a moment early. Both read the same
+  source seconds apart, so the content risk is small. Considered, not missed.
+- **Marker is deleted first and written last, and a failed pull writes a marker
+  too.** Deleting first means a poll can never mistake the previous pull for this
+  one. The marker carries `status`: `complete` with row counts, or `failed` with
+  the reason, for example a 401 from Planon. Reverses an earlier "failures write
+  nothing": without it "failed" and "still running" look identical to the page, and
+  the owner of a two-button page is not going to read CloudWatch. The error is
+  re-raised, so Lambda still counts and logs it.
 - **Explicit log group, 13 months retention, default `RETAIN`.** The report is
   annual, so 13 months keeps last year's run visible for comparison.
   `log_retention` on the function is deprecated in favour of `log_group`.
@@ -223,10 +229,14 @@ in the order the pieces were built.
   puts tokens in the URL and is the one current guidance says to avoid. No client
   secret, since a browser cannot keep one.
 - **Domain prefix is `fac-space-report-<account id>`.** Prefixes must be unique
-  per region, and the account id guarantees that with nothing to configure.
-- **`CfnManagedLoginBranding` is the one L1 in the stack.** Managed login shows an
-  error page until the client has a branding style, and CDK has no L2 for it.
-  It takes Cognito's default look.
+  per region, and the account id guarantees that with nothing to configure. It
+  does put the account id in the sign-in URL. AWS's position is that account ids
+  "are not considered secret, sensitive, or confidential"; if campus security
+  disagrees, swap in any unique string.
+- **`CfnManagedLoginBranding` is the one L1 in the stack.** AWS: "Managed login
+  isn't available for an app client created with an AWS SDK until you create one",
+  which covers every client CDK makes, and CDK has no L2 for it. It takes
+  Cognito's default look.
 - **No self sign-up. An admin creates accounts** (command in `cdk/README.md`).
   Anyone who can sign in can pull Planon data, so an open sign-up page would be
   the whole perimeter.
@@ -256,6 +266,13 @@ in the order the pieces were built.
   first-deploy error.
 - **Refresh tokens last 1 day, not the default 30.** Tokens sit in the browser.
   Signing in again once a day costs the owner nothing.
+- **Refresh token rotation is off. Known gap.** AWS calls rotation a best practice
+  and CDK supports it (`refresh_token_rotation_grace_period`). It cannot coexist
+  with the `REFRESH_TOKEN_AUTH` flow, so turning it on means listing the client's
+  auth flows explicitly, and the docs do not say which of those managed login's
+  password sign-in depends on. A wrong guess locks everyone out and cannot be
+  tested without a deploy. Turn it on against a deployed pool, confirm sign-in
+  still works, then keep it.
 - **Default `RETAIN` on the pool.** Consistent with the buckets.
 
 ## 8. API Gateway REST API
@@ -329,7 +346,7 @@ Accepted. Security Hub will flag these, and each is a decision for campus, not a
 
 | Control | What it wants | Why not here |
 | --- | --- | --- |
-| CloudFront.6, APIGateway.4 | WAF web ACLs | New components, roughly $5 a month each plus rules. The API already needs a sign-in on every call and is throttled. The first thing to add if campus security asks. |
+| CloudFront.6, APIGateway.4 | WAF web ACLs | New components, roughly $5 a month each plus rules. The API already needs a sign-in on every call and is throttled. AWS's Cognito security guide also suggests one on the user pool. The first thing to add if campus security asks. |
 | CloudFront.7, CloudFront.8 | Custom certificate, SNI | Needs a campus domain name. Until then CloudFront pins the default certificate to its `TLSv1` policy (AWS docs), so the minimum TLS version cannot be raised. With a domain, use `TLSv1.2_2021` or newer. |
 | CloudFront.5, S3.9 | CloudFront and S3 access logs | Needs a log bucket. CloudFront.5 only accepts legacy logging, which needs ACLs on that bucket, which S3.12 then flags. The API access log already records who did what. |
 | CloudFront.4, S3.7 | Origin failover, cross-region replication | A second region for a once-a-year report. |
