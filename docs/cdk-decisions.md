@@ -103,3 +103,49 @@ in the order the pieces were built.
   it; that is a known, accepted finding.
 - **Default AWS managed key and default removal policy (`Delete`).** Re-entering
   two values after a rebuild is cheaper than an orphaned secret.
+
+## 5. pull Lambda
+
+- **The handler is real, thin glue in `cdk/functions/pull/handler.py`.** Synth
+  needs code to package, and a stub would leave diagram step 3 unbuilt. It imports
+  `connector/planon_odata.py` unchanged. Checked against fakes only, never
+  against Planon or AWS.
+- **Packaging is CDK's documented Docker bundling (`bundle()` in `stack.py`).** The
+  connector needs `requests`, which the Lambda runtime does not ship, so something
+  has to run pip. Cost: synth needs Docker running. The alpha `PythonFunction`
+  construct does the same job but is experimental, a bad fit for a handoff.
+- **The repo root is mounted, and the asset hash is taken from the output.** The
+  zip combines files from `cdk/` and `connector/`. Hashing the source would drag
+  in `.git` and `.venv`; hashing one handler folder would miss connector changes.
+- **Bundling platform pinned to the function's architecture.** `requests` pulls in
+  `charset_normalizer`, which has compiled `.so` files. Without the pin, an x86
+  laptop would build x86 binaries into an ARM function and it would still synth.
+- **Own `requirements.txt` with `requests==2.34.2`, not the connector's.** The
+  connector's file also lists `boto3`, which the runtime already has and which
+  would add roughly 100 MB. Transitive packages float, so `certifi`'s CA bundle
+  stays current on each build. `requests` now has two version specs to keep in step.
+- **Python 3.13 on arm64.** 3.13 is the version the pipeline has been run and
+  compared against Planon on locally; 3.14 exists but buys nothing here. arm64 is
+  cheaper per millisecond and AWS's default recommendation for new functions.
+- **512 MB, 15 minute timeout.** The connector holds a whole table in memory to
+  build its CSV header. Nobody has timed a full pull, the invoke is asynchronous
+  so no one waits on it, and billing is for time used. Tune down once measured.
+- **No async retries (`retry_attempts=0`).** Lambda's default of two silent retries
+  means three logins with a bad password. The owner clicks Refresh again instead.
+- **No reserved concurrency.** It would stop two overlapping pulls, but it fails to
+  deploy in new accounts with a low concurrency quota. Overlapping pulls write the
+  same data to the same keys, so the damage is nil.
+- **Marker is deleted first and written last; failures write nothing.** A poll can
+  then never mistake the previous pull for this one. A failed pull shows up as a
+  marker that never arrives, plus the error in the log group.
+- **Explicit log group, 13 months retention, default `RETAIN`.** The report is
+  annual, so 13 months keeps last year's run visible for comparison.
+  `log_retention` on the function is deprecated in favour of `log_group`.
+- **Permissions via L2 grants: read this one secret; write `tables/*` and the
+  marker key.** `grant_write` includes a few tagging and legal-hold actions the
+  handler does not use. Kept for readability; they do nothing on this bucket.
+- **No VPC, no X-Ray. This assumes `planon.calpoly.edu` answers from the public
+  internet.** If it is campus-only, this function needs a VPC with a route to
+  campus, and that is a diagram change. **Unverified. Check before deploying.**
+- **Planon base URL is not configured here.** The connector's default is the Cal
+  Poly endpoint; repeating it would make two places to change.

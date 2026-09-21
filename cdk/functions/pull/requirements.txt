@@ -1,0 +1,3 @@
+# What connector/planon_odata.py imports. boto3 is left out on purpose: the
+# Lambda runtime ships it.
+requests==2.34.2

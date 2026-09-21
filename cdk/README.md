@@ -3,7 +3,9 @@
 Builds the deployment drawn in `../docs/aws-deployment.drawio`. Every choice the
 diagram did not make is written down in `../docs/cdk-decisions.md`.
 
-Needs Python 3.10+, Node 20+, and the CDK CLI (`npm install -g aws-cdk`).
+Needs Python 3.10+, Node 20+, the CDK CLI (`npm install -g aws-cdk`), and Docker
+running. Synth builds the Lambda zips inside AWS's Lambda build image, so the
+first run downloads that image and takes a minute.
 
     cd cdk
     python3 -m venv .venv && source .venv/bin/activate

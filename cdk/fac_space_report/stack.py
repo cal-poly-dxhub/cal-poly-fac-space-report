@@ -1,14 +1,42 @@
-from aws_cdk import CfnOutput, Stack
+from pathlib import Path
+
+from aws_cdk import AssetHashType, BundlingOptions, CfnOutput, Duration, Stack
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
+from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secretsmanager
 from constructs import Construct
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RUNTIME = lambda_.Runtime.PYTHON_3_13
+ARCHITECTURE = lambda_.Architecture.ARM_64
+
 # Layout of the data bucket, shared by both Lambdas and the API.
 TABLES_PREFIX = "tables/"
 MARKER_KEY = "marker/complete.json"
+
+
+def bundle(*commands: str) -> lambda_.Code:
+    """Build a Lambda zip in the runtime's Docker image, with the repo at /asset-input.
+
+    The handlers reuse connector/ and pipeline/ as they are, so the whole repo is
+    mounted rather than one handler directory. Hashing the output, not the source,
+    keeps .git and .venv out of the asset hash.
+    """
+    return lambda_.Code.from_asset(
+        str(REPO_ROOT),
+        asset_hash_type=AssetHashType.OUTPUT,
+        bundling=BundlingOptions(
+            image=RUNTIME.bundling_image,
+            # pip picks compiled wheels for the container it runs in, so the container
+            # has to be the Lambda's architecture, whatever the laptop is.
+            platform=ARCHITECTURE.docker_platform,
+            command=["bash", "-c", " && ".join(commands)],
+        ),
+    )
 
 
 class FacSpaceReportStack(Stack):
@@ -61,6 +89,38 @@ class FacSpaceReportStack(Stack):
                 generate_string_key="password",
             ),
         )
+
+        # "pull Lambda". Invoked asynchronously by the Refresh endpoint: reads the
+        # Planon login, pulls the five tables over OData, writes them and then the
+        # completion marker. Planon is outside AWS, so there is nothing to build for it.
+        pull_fn = lambda_.Function(
+            self,
+            "PullFunction",
+            description="Copies the five Planon tables into the data bucket",
+            runtime=RUNTIME,
+            architecture=ARCHITECTURE,
+            handler="handler.handler",
+            code=bundle(
+                "pip install -r cdk/functions/pull/requirements.txt -t /asset-output --no-compile --no-cache-dir",
+                "cp cdk/functions/pull/handler.py connector/planon_odata.py /asset-output",
+            ),
+            memory_size=512,
+            timeout=Duration.minutes(15),
+            # A failed pull is retried by clicking Refresh again, not behind the owner's back.
+            retry_attempts=0,
+            log_group=logs.LogGroup(
+                self, "PullLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
+            ),
+            environment={
+                "DATA_BUCKET": data_bucket.bucket_name,
+                "TABLES_PREFIX": TABLES_PREFIX,
+                "MARKER_KEY": MARKER_KEY,
+                "PLANON_SECRET_ARN": planon_secret.secret_arn,
+            },
+        )
+        planon_secret.grant_read(pull_fn)
+        data_bucket.grant_write(pull_fn, f"{TABLES_PREFIX}*")
+        data_bucket.grant_write(pull_fn, MARKER_KEY)
 
         CfnOutput(self, "SiteUrl", value=self.site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)
