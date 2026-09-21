@@ -182,3 +182,41 @@ in the order the pieces were built.
   mechanism to understand. The pipeline is standard library only, so no pip step.
 - **Same runtime, architecture and log retention as pull.** Read-only grant on
   `tables/*`; the L2 grant also allows listing the bucket, which is harmless.
+
+## 7. Cognito user pool
+
+- **"Standalone" read as: its own user directory, no campus SSO.** Only the
+  `COGNITO` provider is enabled. If it was meant as "no hosted sign-in pages",
+  the next entry is the one to revisit.
+- **Sign-in uses Cognito's managed login pages, authorization code flow.** Now
+  that the site is on HTTPS this is the AWS standard for a browser app, and the
+  page never touches a password. It also handles temporary passwords, password
+  reset and MFA setup, all of which the page would otherwise have to build. Adds
+  a login domain and a branding resource the diagram does not draw.
+- **Code flow only; implicit flow off.** CDK turns both on by default. Implicit
+  puts tokens in the URL and is the one current guidance says to avoid. No client
+  secret, since a browser cannot keep one.
+- **Domain prefix is `fac-space-report-<account id>`.** Prefixes must be unique
+  per region, and the account id guarantees that with nothing to configure.
+- **`CfnManagedLoginBranding` is the one L1 in the stack.** Managed login shows an
+  error page until the client has a branding style, and CDK has no L2 for it.
+  It takes Cognito's default look.
+- **No self sign-up. An admin creates accounts** (command in `cdk/README.md`).
+  Anyone who can sign in can pull Planon data, so an open sign-up page would be
+  the whole perimeter.
+- **Email sign-in, case-insensitive; 12 characters with all four character
+  classes, written out in full.** Left to defaults, the template omits the
+  character-class rules and it is unclear what Cognito then assumes.
+- **MFA optional, authenticator app only, no SMS.** Required MFA is the better
+  end state, but it locks out an owner who signs in once a year and lost their
+  phone. SMS needs an SNS role and spend limit. Campus security may want
+  `REQUIRED`; it is one word to change.
+- **Essentials plan, Cognito's built-in email.** Managed login needs Essentials.
+  At a handful of users both are inside the free allowance, and built-in email's
+  50 a day limit is far more than invites and resets will use.
+- **Callback and logout URLs: the site URL with and without a trailing slash.**
+  Cognito matches `redirect_uri` exactly, and that mismatch is the classic
+  first-deploy error.
+- **Refresh tokens last 1 day, not the default 30.** Tokens sit in the browser.
+  Signing in again once a day costs the owner nothing.
+- **Default `RETAIN` on the pool.** Consistent with the buckets.

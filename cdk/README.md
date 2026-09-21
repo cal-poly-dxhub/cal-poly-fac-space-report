@@ -17,9 +17,18 @@ does not touch AWS and needs no credentials.
 
 ## After the first deploy
 
-The stack creates the Planon secret holding a placeholder. Put the real login in
-it once. `PlanonSecretName` is in the stack outputs.
+Two one-time steps. The names in angle brackets are stack outputs.
+
+The stack creates the Planon secret holding a placeholder. Put the real login in it.
 
     aws secretsmanager put-secret-value \
       --secret-id <PlanonSecretName> \
       --secret-string '{"username": "...", "password": "..."}'
+
+Nobody can sign themselves up. Create the report owner's account; Cognito emails
+them a temporary password and makes them choose a new one at first sign-in.
+
+    aws cognito-idp admin-create-user \
+      --user-pool-id <UserPoolId> \
+      --username owner@calpoly.edu \
+      --user-attributes Name=email,Value=owner@calpoly.edu Name=email_verified,Value=true

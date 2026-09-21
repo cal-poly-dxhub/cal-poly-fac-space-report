@@ -1,8 +1,9 @@
 from pathlib import Path
 
-from aws_cdk import AssetHashType, BundlingOptions, CfnOutput, Duration, Stack
+from aws_cdk import AssetHashType, Aws, BundlingOptions, CfnOutput, Duration, Stack
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
+from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
@@ -157,7 +158,65 @@ class FacSpaceReportStack(Stack):
         )
         data_bucket.grant_read(build_fn, f"{TABLES_PREFIX}*")
 
+        # "Cognito user pool (standalone)": its own user directory, no campus SSO.
+        # Nobody can sign themselves up; an admin creates the owner's account.
+        user_pool = cognito.UserPool(
+            self,
+            "UserPool",
+            self_sign_up_enabled=False,
+            sign_in_aliases=cognito.SignInAliases(email=True),
+            sign_in_case_sensitive=False,
+            password_policy=cognito.PasswordPolicy(
+                min_length=12,
+                require_lowercase=True,
+                require_uppercase=True,
+                require_digits=True,
+                require_symbols=True,
+            ),
+            mfa=cognito.Mfa.OPTIONAL,
+            mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True),
+            account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
+            feature_plan=cognito.FeaturePlan.ESSENTIALS,
+        )
+        # Sign-in happens on Cognito's own managed login pages, so the site never
+        # handles a password. The page sends the browser there and gets a code back.
+        login_domain = user_pool.add_domain(
+            "LoginDomain",
+            cognito_domain=cognito.CognitoDomainOptions(
+                # Must be unique in the region; the account id makes it so.
+                domain_prefix=f"fac-space-report-{Aws.ACCOUNT_ID}",
+            ),
+            managed_login_version=cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
+        )
+        site_client = user_pool.add_client(
+            "SiteClient",
+            generate_secret=False,
+            prevent_user_existence_errors=True,
+            supported_identity_providers=[
+                cognito.UserPoolClientIdentityProvider.COGNITO
+            ],
+            o_auth=cognito.OAuthSettings(
+                flows=cognito.OAuthFlows(authorization_code_grant=True),
+                scopes=[cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL],
+                callback_urls=[self.site_url, f"{self.site_url}/"],
+                logout_urls=[self.site_url, f"{self.site_url}/"],
+            ),
+            refresh_token_validity=Duration.days(1),
+        )
+        # Managed login shows an error page until the client has a branding style.
+        # No L2 for this yet. This one takes Cognito's default look.
+        cognito.CfnManagedLoginBranding(
+            self,
+            "LoginBranding",
+            user_pool_id=user_pool.user_pool_id,
+            client_id=site_client.user_pool_client_id,
+            use_cognito_provided_values=True,
+        )
+
         CfnOutput(self, "SiteUrl", value=self.site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)
         CfnOutput(self, "DataBucketName", value=data_bucket.bucket_name)
         CfnOutput(self, "PlanonSecretName", value=planon_secret.secret_name)
+        CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
+        CfnOutput(self, "SiteClientId", value=site_client.user_pool_client_id)
+        CfnOutput(self, "LoginUrl", value=login_domain.base_url())
