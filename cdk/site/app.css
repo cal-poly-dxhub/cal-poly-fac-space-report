@@ -1,0 +1,270 @@
+/* Cal Poly's palette (ucm.calpoly.edu/color-guidelines) on Planon's layout:
+   a ribbon across the top, a list panel, a workspace, a status line. */
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("fonts/SourceSans3-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  --poly-green: #154734;
+  --poly-green-deep: #0e3325;
+  --mustang-gold: #bd8b13;
+  --seal-gray: #54585a;
+  --kennedy-gray: #8e9089;
+  --farmers-market: #3a913f;
+  --heritage-orange: #ff6a39;
+  --ink: #1f2a26;
+  --ground: #f2f4f3;
+  --rule: #d3d9d6;
+  --sage-tint: #e7efeb;      /* Coast Sage, lightened */
+  --gold-tint: #fbf3dc;      /* Stadium Gold, lightened */
+  --failure-ink: #a5371a;    /* Heritage Orange, darkened until it passes on white */
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 15px/1.45 "Source Sans 3", "Source Sans Pro", "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+[hidden] { display: none !important; }
+
+:focus-visible { outline: 2px solid var(--mustang-gold); outline-offset: 2px; }
+
+/* Ribbon */
+
+.ribbon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 0 20px;
+  background: var(--poly-green);
+  border-bottom: 3px solid var(--mustang-gold);
+  color: #fff;
+}
+
+.brand { margin: 0; font-size: 17px; }
+.brand-name { font-weight: 700; }
+.brand-app { margin-left: 10px; padding-left: 12px; border-left: 1px solid rgb(255 255 255 / 0.35); }
+
+.account { display: flex; align-items: center; gap: 14px; font-size: 14px; }
+
+.ribbon-button {
+  padding: 4px 10px;
+  border: 1px solid rgb(255 255 255 / 0.55);
+  border-radius: 2px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.ribbon-button { white-space: nowrap; }
+.ribbon-button:hover { background: rgb(255 255 255 / 0.12); }
+#account-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account { min-width: 0; }
+
+/* Signed out */
+
+.gate { max-width: 30rem; padding: 12px; }
+.gate .summary { margin-bottom: 16px; }
+
+/* Workbench: list panel beside the workspace */
+
+.workbench {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  padding: 12px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+
+.panel-title {
+  margin: 0;
+  padding: 9px 14px;
+  background: var(--sage-tint);
+  border-bottom: 1px solid var(--rule);
+  color: var(--poly-green);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel-body { padding: 14px; overflow-y: auto; }
+
+.summary { margin: 0 0 12px; overflow-wrap: anywhere; }
+.summary.failure,
+.empty.failure {
+  padding: 8px 12px;
+  border-left: 4px solid var(--heritage-orange);
+  background: #fff6f2;
+  color: var(--failure-ink);
+}
+
+.hint { margin: 8px 0 0; color: var(--seal-gray); font-size: 13.5px; }
+
+/* The five Planon tables */
+
+.tables { width: 100%; margin-bottom: 14px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tables th, .tables td { padding: 6px 0; border-bottom: 1px solid var(--rule); text-align: left; }
+.tables th { color: var(--seal-gray); font-size: 13.5px; font-weight: 600; }
+.tables .num { text-align: right; }
+.tables td.pending { color: var(--kennedy-gray); }
+
+/* Buttons */
+
+.button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--poly-green);
+  border-radius: 2px;
+  background: #fff;
+  color: var(--poly-green);
+  font: 600 14.5px/1 inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+.button:hover { background: var(--sage-tint); }
+.button.primary { background: var(--poly-green); color: #fff; }
+.button.primary:hover { background: var(--poly-green-deep); }
+.button:disabled,
+.button.primary:disabled {
+  border-color: var(--rule);
+  background: var(--ground);
+  color: var(--kennedy-gray);
+  cursor: not-allowed;
+}
+
+/* A refresh in flight: a thin moving stripe under the panel title */
+
+.progress { height: 3px; background: var(--sage-tint); overflow: hidden; }
+.progress::before {
+  content: "";
+  display: block;
+  width: 30%;
+  height: 100%;
+  background: var(--mustang-gold);
+  animation: travel 1.6s ease-in-out infinite alternate;
+}
+@keyframes travel { from { transform: translateX(0); } to { transform: translateX(233%); } }
+@media (prefers-reduced-motion: reduce) {
+  .progress::before { width: 100%; animation: none; }
+}
+
+/* Deployment details, for whoever is testing a deploy */
+
+.deployment { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.5px; }
+.deployment summary { color: var(--seal-gray); cursor: pointer; }
+.deployment dl { margin: 10px 0 0; }
+.deployment dt { color: var(--seal-gray); }
+.deployment dd { margin: 0 0 8px; overflow-wrap: anywhere; }
+
+/* Report workspace */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 0;
+}
+.toolbar label { font-weight: 600; }
+.toolbar input {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--kennedy-gray);
+  border-radius: 2px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+.toolbar-hint { margin: 6px 14px 12px; }
+
+.empty { margin: 0 14px 14px; padding: 28px 20px; border: 1px dashed var(--rule); color: var(--seal-gray); }
+.empty p { margin: 0 0 4px; }
+.empty.failure { border-width: 0 0 0 4px; border-style: solid; }
+
+.grid-wrap { flex: 1; min-height: 12rem; margin: 0 14px; overflow: auto; border: 1px solid var(--rule); }
+
+/* border-collapse would drop the borders of the frozen cells, so: separate, no spacing. */
+.grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grid th, .grid td { padding: 5px 8px; border-bottom: 1px solid var(--rule); background: #fff; text-align: left; }
+.grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 2px solid var(--poly-green);
+  color: var(--poly-green);
+  font-weight: 600;
+  line-height: 1.2;
+  vertical-align: bottom;
+  white-space: normal; /* "CATEGORY CODE" on two lines keeps the code columns narrow */
+}
+.grid .num { text-align: right; }
+.grid tr.center td {
+  background: var(--sage-tint);
+  border-left: 4px solid var(--mustang-gold);
+  color: var(--poly-green);
+  font-weight: 600;
+}
+.grid tr.subtotal td { background: var(--gold-tint); font-weight: 600; }
+.grid tr.total td { background: var(--gold-tint); border-top: 2px solid var(--poly-green); font-weight: 700; }
+.grid .row-label { color: var(--seal-gray); font-style: italic; font-weight: 400; }
+.center-label { display: inline-block; position: sticky; left: 12px; }
+
+/* NUM, SFX and FAC NAME stay put while the rest scrolls, so an area can always be
+   read against its facility. */
+@media (min-width: 861px) {
+  .grid tbody tr:not(.center) > :nth-child(-n+3) { position: sticky; z-index: 1; }
+  .grid thead th:nth-child(-n+3) { z-index: 3; } /* frozen both ways, so above everything */
+  .grid tr:not(.center) > :nth-child(1) { left: 0; width: 52px; min-width: 52px; }
+  .grid tr:not(.center) > :nth-child(2) { left: 52px; width: 44px; min-width: 44px; }
+  .grid tr:not(.center) > :nth-child(3) { left: 96px; border-right: 1px solid var(--rule); }
+}
+
+.grid-note { margin: 8px 14px 12px; }
+
+/* Status line */
+
+.statusbar {
+  padding: 6px 20px;
+  background: #fff;
+  border-top: 1px solid var(--rule);
+  color: var(--seal-gray);
+  font-size: 14px;
+}
+.status.success { color: var(--farmers-market); }
+.status.failure { color: var(--failure-ink); }
+
+/* On a wide screen the page is one fixed frame and the panels scroll inside it.
+   On a narrow one the panels stack and the page scrolls. */
+
+@media (min-width: 861px) {
+  body { overflow: hidden; }
+}
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .workbench { grid-template-columns: minmax(0, 1fr); }
+  .brand-app { display: block; margin: 0; padding: 0; border: 0; font-size: 14px; }
+  .ribbon { padding-block: 8px; }
+  .grid-wrap { max-height: 70vh; }
+}
