@@ -42,7 +42,7 @@ in the order the pieces were built.
 - **CloudFront in front of a private bucket. This departs from the diagram, which
   shows S3 alone.** Decided by Kyle: follow the AWS standard. S3 website endpoints
   are HTTP only, and browser sign-in code needs `crypto.subtle`, which exists only
-  on HTTPS pages. The diagram should get a CloudFront icon to match.
+  on HTTPS pages. The diagram was updated to show it on 2026-09-21.
 - **Origin access control, not origin access identity.** OAI is the legacy
   mechanism; OAC is what AWS documents for new distributions and what Security Hub
   CloudFront.13 checks for. The bucket policy CDK generates allows only this one
@@ -283,7 +283,7 @@ in the order the pieces were built.
   build needs a publicly readable object in the data bucket. Instead `GET /refresh`
   reads the marker through an S3 integration, behind the same sign-in as everything
   else. The API still has the diagram's two endpoints; Refresh has two methods. The
-  diagram's step 4 arrow should be redrawn through the Refresh endpoint.
+  diagram's step 4 arrows were redrawn that way on 2026-09-21.
 - **That `GET` is a direct S3 integration with its own role, not a third Lambda.**
   The role reads the marker key and nothing else. A missing marker comes back as
   `200 {"finished_at": null}` rather than 404, so a normal poll does not fill the
