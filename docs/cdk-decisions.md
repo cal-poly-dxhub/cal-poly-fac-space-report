@@ -153,7 +153,10 @@ in the order the pieces were built.
 - **Permissions via L2 grants: read this one secret; write `tables/*` and the
   marker key.** `grant_write` includes a few tagging and legal-hold actions the
   handler does not use. Kept for readability; they do nothing on this bucket.
-- **No VPC, no X-Ray. This assumes `planon.calpoly.edu` answers from the public
+- **X-Ray active tracing on, on both functions.** Reverses an earlier "no X-Ray".
+  One setting each, it clears Security Hub Lambda.7, and a trace is the quickest
+  way to see where a slow pull spent its time. Volume is a few hundred traces a year.
+- **No VPC. This assumes `planon.calpoly.edu` answers from the public
   internet.** If it is campus-only, this function needs a VPC with a route to
   campus, and that is a diagram change. **Unverified. Check before deploying.**
 - **Planon base URL is not configured here.** The connector's default is the Cal
@@ -181,8 +184,9 @@ in the order the pieces were built.
   with a proxy integration only the function can add response headers. The
   allowed origin is the one site, not `*`.
 - **1024 MB, 29 second timeout.** Someone is waiting on this one, and Lambda CPU
-  scales with memory. API Gateway drops an integration at 29 seconds, so a longer
-  timeout could never deliver a result.
+  scales with memory. API Gateway's integration timeout is 29 seconds by default,
+  so a longer function timeout could never deliver a result. For Regional APIs that
+  limit can now be raised by quota request, if the report ever outgrows it.
 - **Same Docker bundling as pull.** One packaging mechanism to understand. The
   pipeline is standard library only; the pip step is there for the pinned `boto3`
   the handler uses, for the reason given in section 5.

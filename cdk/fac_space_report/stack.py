@@ -127,6 +127,7 @@ class FacSpaceReportStack(Stack):
             ),
             memory_size=512,
             timeout=Duration.minutes(15),
+            tracing=lambda_.Tracing.ACTIVE,
             # A failed pull is retried by clicking Refresh again, not behind the owner's back.
             retry_attempts=0,
             log_group=logs.LogGroup(
@@ -157,8 +158,9 @@ class FacSpaceReportStack(Stack):
                 "cp cdk/functions/build/handler.py pipeline/build_report.py /asset-output",
             ),
             memory_size=1024,
-            # API Gateway gives up on an integration after 29 seconds.
+            # API Gateway gives up on an integration after 29 seconds by default.
             timeout=Duration.seconds(29),
+            tracing=lambda_.Tracing.ACTIVE,
             log_group=logs.LogGroup(
                 self, "BuildLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
             ),
