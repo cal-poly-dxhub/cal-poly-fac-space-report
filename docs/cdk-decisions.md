@@ -44,8 +44,9 @@ in the order the pieces were built.
   are HTTP only, and browser sign-in code needs `crypto.subtle`, which exists only
   on HTTPS pages. The diagram should get a CloudFront icon to match.
 - **Origin access control, not origin access identity.** OAI is the legacy
-  mechanism; OAC is what AWS documents for new distributions. The bucket policy
-  CDK generates allows only this one distribution.
+  mechanism; OAC is what AWS documents for new distributions and what Security Hub
+  CloudFront.13 checks for. The bucket policy CDK generates allows only this one
+  distribution.
 - **Bucket: all public access blocked, SSE-S3, TLS-only policy.** SSE-S3 rather
   than KMS because OAC with KMS needs a key policy and the page is not sensitive.
 - **No custom domain or certificate.** The diagram names none, so the site is on
@@ -60,9 +61,8 @@ in the order the pieces were built.
   the bucket, so S3 answers a missing key with 403 and the visitor sees raw XML.
   One error response maps 403 to `/index.html`. Fine for a one-page site; it would
   hide a missing asset on a bigger one.
-- **No access logging, no WAF.** One-owner internal tool; each adds a bucket or a
-  monthly charge that is not in the diagram. Revisit if campus security asks
-  (Security Hub controls CloudFront.5 and CloudFront.6).
+- **No access logging, no WAF.** Each adds a bucket or a monthly charge that is not
+  in the diagram. See the accepted findings table at the end.
 - **Buckets keep CDK's default `RETAIN`.** `cdk destroy` leaves the bucket behind.
   The alternative, `auto_delete_objects`, adds a custom-resource Lambda that is not
   in the diagram.
@@ -98,9 +98,10 @@ in the order the pieces were built.
 - **Placeholder is JSON, `{"username": "REPLACE_ME", "password": <random>}`.** It
   shows whoever fills it in the exact shape the pull Lambda reads. The two keys
   mirror the connector's `PLANON_USERNAME` and `PLANON_PASSWORD`.
-- **Do not edit the placeholder template after go-live.** A change to
-  `GenerateSecretString` makes CloudFormation generate a fresh value, which would
-  overwrite the real login. Not tested here, since nothing is deployed.
+- **Do not edit the placeholder template after go-live.** The CloudFormation
+  reference says of `GenerateSecretString`: "When you make a change to this
+  property, a new secret version is created." That new version would replace the
+  real login.
 - **No fixed `secret_name`.** A deleted secret holds its name for the recovery
   window, so a fixed name can block a redeploy. The generated name still starts
   with `PlanonCredentials`, and `PlanonSecretName` is a stack output.
@@ -134,16 +135,19 @@ in the order the pieces were built.
   it out. Cost is a 29 MB zip against a 250 MB limit. Transitive packages float, so
   `certifi`'s CA bundle stays current. `requests` now has two specs to keep in step.
 - **Python 3.13 on arm64.** 3.13 is the version the pipeline has been run and
-  compared against Planon on locally; 3.14 exists but buys nothing here. arm64 is
-  cheaper per millisecond and AWS's default recommendation for new functions.
+  compared against Planon on locally. Lambda's 3.14 runtime has the same
+  deprecation date (Jun 30, 2029), so it buys no extra life. arm64 because AWS
+  documents "significantly better price and performance" and every package here
+  has an arm64 build. It is offered in most regions, not all; check the target.
 - **512 MB, 15 minute timeout.** The connector holds a whole table in memory to
   build its CSV header. Nobody has timed a full pull, the invoke is asynchronous
   so no one waits on it, and billing is for time used. Tune down once measured.
 - **No async retries (`retry_attempts=0`).** Lambda's default of two silent retries
   means three logins with a bad password. The owner clicks Refresh again instead.
-- **No reserved concurrency.** It would stop two overlapping pulls, but it fails to
-  deploy in new accounts with a low concurrency quota. Overlapping pulls write the
-  same data to the same keys, so the damage is nil.
+- **No reserved concurrency.** It would stop two overlapping pulls, but the Lambda
+  quotas page warns that new accounts start with reduced concurrency, and reserving
+  from a small pool can fail the deploy. Overlapping pulls write the same data to
+  the same keys, so the damage is nil.
 - **Marker is deleted first and written last; failures write nothing.** A poll can
   then never mistake the previous pull for this one. A failed pull shows up as a
   marker that never arrives, plus the error in the log group.
