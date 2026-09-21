@@ -29,27 +29,29 @@ for CloudWatch logging" in the API Gateway developer guide.
 
 ## After the first deploy
 
-Two one-time steps. The names in angle brackets are stack outputs.
+`cdk deploy` ends by printing its outputs. Three of them are complete commands with
+the region, pool id and secret already filled in. Paste each one and replace only
+the words in capitals.
 
-The stack creates the Planon secret holding a placeholder. Put the real login in it.
+- `LoginStep1CreateUser` then `LoginStep2SetPassword` make a sign-in. Replace `EMAIL`
+  (both places in step 1) and `PASSWORD`. The account works at once: no emailed
+  temporary password, no forced change. Passwords need 12 characters with upper
+  case, lower case, a digit and a symbol. Nobody can sign themselves up, so this is
+  the only way in.
+- `PlanonPutLogin` stores the Planon login the pull uses. Replace `PLANON_USER` and
+  `PLANON_PASSWORD`.
 
-    aws secretsmanager put-secret-value \
-      --secret-id <PlanonSecretName> \
-      --secret-string '{"username": "...", "password": "..."}'
+Both passwords pass through your shell history. Clear it, or have the owner change
+theirs with "Forgot your password?" on the sign-in page.
 
-Nobody can sign themselves up. Create the report owner's account; Cognito emails
-them a temporary password. At first sign-in it makes them choose a new one and set
-up an authenticator app, which it then asks for every time.
+Sign-in is email and password only. MFA is off for the first deploy; the comment
+next to `mfa=` in `fac_space_report/stack.py` shows the two lines that turn it on.
+That change updates the pool in place, and Cognito's sign-in pages then walk each
+user through setting up an authenticator app.
 
-    aws cognito-idp admin-create-user \
-      --user-pool-id <UserPoolId> \
-      --username owner@calpoly.edu \
-      --user-attributes Name=email,Value=owner@calpoly.edu Name=email_verified,Value=true
+To remove an account:
 
-If the owner loses their authenticator, delete the account and create it again.
-Accounts hold no data, so nothing is lost.
-
-    aws cognito-idp admin-delete-user --user-pool-id <UserPoolId> --username owner@calpoly.edu
+    aws cognito-idp admin-delete-user --user-pool-id <UserPoolId> --username EMAIL
 
 ## What the page needs
 

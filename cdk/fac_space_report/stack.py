@@ -380,5 +380,27 @@ class FacSpaceReportStack(Stack):
         CfnOutput(self, "PlanonSecretName", value=planon_secret.secret_name)
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
 
+        # The two one-time jobs after a first deploy, printed ready to paste. Only the
+        # words in capitals need replacing. No secret is ever in the template.
+        cognito_cli = f"aws cognito-idp --region {Aws.REGION}"
+        pool_and_user = f"--user-pool-id {user_pool.user_pool_id} --username EMAIL"
+        CfnOutput(
+            self,
+            "LoginStep1CreateUser",
+            value=f"{cognito_cli} admin-create-user {pool_and_user} --message-action SUPPRESS"
+            " --user-attributes Name=email,Value=EMAIL Name=email_verified,Value=true",
+        )
+        CfnOutput(
+            self,
+            "LoginStep2SetPassword",
+            value=f"{cognito_cli} admin-set-user-password {pool_and_user} --password 'PASSWORD' --permanent",
+        )
+        CfnOutput(
+            self,
+            "PlanonPutLogin",
+            value=f"aws secretsmanager --region {Aws.REGION} put-secret-value"
+            f" --secret-id {planon_secret.secret_arn}"
+            """ --secret-string '{"username": "PLANON_USER", "password": "PLANON_PASSWORD"}'""",
+        )
         CfnOutput(self, "SiteClientId", value=site_client.user_pool_client_id)
         CfnOutput(self, "LoginUrl", value=login_domain.base_url())

@@ -237,9 +237,14 @@ in the order the pieces were built.
   isn't available for an app client created with an AWS SDK until you create one",
   which covers every client CDK makes, and CDK has no L2 for it. It takes
   Cognito's default look.
-- **No self sign-up. An admin creates accounts** (command in `cdk/README.md`).
-  Anyone who can sign in can pull Planon data, so an open sign-up page would be
-  the whole perimeter.
+- **No self sign-up. An admin creates accounts with two commands the deploy
+  prints** (`LoginStep1CreateUser`, `LoginStep2SetPassword`), pool id and region
+  already filled in. Anyone who can sign in can pull Planon data, so an open
+  sign-up page would be the whole perimeter. The admin sets a permanent password
+  (`--permanent` leaves the user `Confirmed`, per the API reference) and suppresses
+  the invite email, so there is no temporary password to expire. Cost: the admin
+  knows that password until the owner changes it. `PlanonPutLogin` is printed the
+  same way. The outputs hold placeholders only, never a secret.
 - **Email sign-in, case-insensitive; 12 characters with all four character
   classes, written out in full.** Left to defaults, the template omits the
   character-class rules and it is unclear what Cognito then assumes.
