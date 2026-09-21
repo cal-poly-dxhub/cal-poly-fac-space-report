@@ -1,9 +1,12 @@
+import json
 from pathlib import Path
 
 from aws_cdk import AssetHashType, Aws, BundlingOptions, CfnOutput, Duration, Stack
+from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_cognito as cognito
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
@@ -227,6 +230,140 @@ class FacSpaceReportStack(Stack):
             client_id=site_client.user_pool_client_id,
             use_cognito_provided_values=True,
         )
+
+        # "API Gateway REST API". Every method requires a Cognito token; that is set
+        # once as the default so a new method cannot be added open by mistake.
+        cors_origin = {"method.response.header.Access-Control-Allow-Origin": f"'{self.site_url}'"}
+        api = apigw.RestApi(
+            self,
+            "Api",
+            rest_api_name="fac-space-report",
+            endpoint_types=[apigw.EndpointType.REGIONAL],
+            default_method_options=apigw.MethodOptions(
+                authorization_type=apigw.AuthorizationType.COGNITO,
+                authorizer=apigw.CognitoUserPoolsAuthorizer(
+                    self, "Authorizer", cognito_user_pools=[user_pool]
+                ),
+            ),
+            default_cors_preflight_options=apigw.CorsOptions(
+                allow_origins=[self.site_url],
+                allow_methods=["GET", "POST"],
+                allow_headers=["Authorization", "Content-Type"],
+            ),
+            deploy_options=apigw.StageOptions(
+                stage_name="prod",
+                # One owner, and every Refresh is a full Planon pull.
+                throttling_rate_limit=5,
+                throttling_burst_limit=10,
+                # The two non-Lambda integrations below have no logs of their own.
+                logging_level=apigw.MethodLoggingLevel.ERROR,
+                tracing_enabled=True,
+                access_log_destination=apigw.LogGroupLogDestination(
+                    logs.LogGroup(
+                        self, "ApiAccessLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
+                    )
+                ),
+                access_log_format=apigw.AccessLogFormat.custom(
+                    json.dumps(
+                        {
+                            "requestTime": apigw.AccessLogField.context_request_time(),
+                            "requestId": apigw.AccessLogField.context_request_id(),
+                            "user": apigw.AccessLogField.context_authorizer_claims("email"),
+                            "ip": apigw.AccessLogField.context_identity_source_ip(),
+                            "method": apigw.AccessLogField.context_http_method(),
+                            "path": apigw.AccessLogField.context_resource_path(),
+                            "status": apigw.AccessLogField.context_status(),
+                        }
+                    )
+                ),
+            ),
+        )
+        # Without these, a rejected request (expired token, throttled) reaches the
+        # page as an unreadable CORS failure instead of a 401 or 429.
+        for name, response_type in [
+            ("Default4xx", apigw.ResponseType.DEFAULT_4_XX),
+            ("Default5xx", apigw.ResponseType.DEFAULT_5_XX),
+        ]:
+            api.add_gateway_response(
+                name,
+                type=response_type,
+                response_headers={"Access-Control-Allow-Origin": f"'{self.site_url}'"},
+            )
+
+        # "Refresh endpoint", step 2: POST starts a pull and returns at once. The
+        # Event invocation type is what makes the invoke asynchronous.
+        refresh = api.root.add_resource("refresh")
+        refresh.add_method(
+            "POST",
+            apigw.LambdaIntegration(
+                pull_fn,
+                proxy=False,
+                request_parameters={
+                    "integration.request.header.X-Amz-Invocation-Type": "'Event'"
+                },
+                request_templates={"application/json": "{}"},
+                passthrough_behavior=apigw.PassthroughBehavior.NEVER,
+                integration_responses=[
+                    apigw.IntegrationResponse(
+                        status_code="202",
+                        response_parameters=cors_origin,
+                        response_templates={"application/json": '{"started": true}'},
+                    )
+                ],
+            ),
+            method_responses=[
+                apigw.MethodResponse(status_code="202", response_parameters={k: True for k in cors_origin})
+            ],
+        )
+
+        # Step 4, the poll. The diagram has the browser read the marker from S3, but
+        # the browser holds a Cognito token, not AWS credentials, and the bucket stays
+        # private. So the read goes through the API: GET returns the marker object, or
+        # {"finished_at": null} while there is none.
+        marker_reader = iam.Role(
+            self,
+            "MarkerReaderRole",
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            description="Lets API Gateway read the completion marker, and nothing else",
+        )
+        # The L2 grant includes ListBucket, which makes S3 say 404 rather than 403
+        # for a missing marker.
+        data_bucket.grant_read(marker_reader, MARKER_KEY)
+        refresh.add_method(
+            "GET",
+            apigw.AwsIntegration(
+                service="s3",
+                integration_http_method="GET",
+                path=f"{data_bucket.bucket_name}/{MARKER_KEY}",
+                options=apigw.IntegrationOptions(
+                    credentials_role=marker_reader,
+                    integration_responses=[
+                        apigw.IntegrationResponse(status_code="200", response_parameters=cors_origin),
+                        apigw.IntegrationResponse(
+                            status_code="200",
+                            selection_pattern="404",
+                            response_parameters=cors_origin,
+                            response_templates={"application/json": '{"finished_at": null}'},
+                        ),
+                        # Any other S3 error would otherwise fall through to the 200 above.
+                        apigw.IntegrationResponse(
+                            status_code="502",
+                            selection_pattern=r"(?!404)[45]\d{2}",
+                            response_parameters=cors_origin,
+                            response_templates={"application/json": '{"error": "could not read the marker"}'},
+                        ),
+                    ],
+                ),
+            ),
+            method_responses=[
+                apigw.MethodResponse(status_code=code, response_parameters={k: True for k in cors_origin})
+                for code in ("200", "502")
+            ],
+        )
+
+        # "Generate endpoint", steps 5-6: a plain synchronous proxy invoke. The
+        # function reads ?ref_date= and answers with report.csv.
+        api.root.add_resource("generate").add_method("GET", apigw.LambdaIntegration(build_fn))
 
         CfnOutput(self, "SiteUrl", value=self.site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)

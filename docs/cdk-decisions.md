@@ -241,3 +241,56 @@ in the order the pieces were built.
 - **Refresh tokens last 1 day, not the default 30.** Tokens sit in the browser.
   Signing in again once a day costs the owner nothing.
 - **Default `RETAIN` on the pool.** Consistent with the buckets.
+
+## 8. API Gateway REST API
+
+- **Second departure from the diagram: step 4's poll goes through the API, not
+  straight to S3.** The diagram has the browser read the marker from the data
+  bucket. The browser holds a Cognito token, not AWS credentials, so a literal
+  build needs a publicly readable object in the data bucket. Instead `GET /refresh`
+  reads the marker through an S3 integration, behind the same sign-in as everything
+  else. The API still has the diagram's two endpoints; Refresh has two methods. The
+  diagram's step 4 arrow should be redrawn through the Refresh endpoint.
+- **That `GET` is a direct S3 integration with its own role, not a third Lambda.**
+  The role reads the marker key and nothing else. A missing marker comes back as
+  `200 {"finished_at": null}` rather than 404, so a normal poll does not fill the
+  browser console with errors. Any other S3 error maps to 502; unmapped, API
+  Gateway would hand it back as a 200. Not exercised: needs a deploy.
+- **Cognito authorizer set once as the default for every method.** A method added
+  later is protected unless someone opts it out. Only the CORS `OPTIONS` methods
+  are open, which browsers require.
+- **The page sends the ID token.** AWS documents both: ID token for "who is this",
+  access token with custom scopes for "what may they do". Everyone who can sign in
+  may do everything here, so scopes and a resource server would be machinery with
+  no job.
+- **`POST /refresh` is a non-proxy Lambda integration with
+  `X-Amz-Invocation-Type: 'Event'`.** That header is how AWS documents an
+  asynchronous invoke, and it only exists on non-proxy integrations. It answers
+  `202 {"started": true}`. The function gets `{}`; other content types get 415.
+- **`GET /generate` is a plain Lambda proxy integration, no request validator.**
+  The function already validates `ref_date` and explains itself. A validator would
+  be a second copy of the rule with a vaguer message.
+- **Regional endpoint.** CDK's default, edge-optimized, puts a hidden CloudFront in
+  front for worldwide callers. The callers are on one campus.
+- **CORS limited to the site's origin, and added to API Gateway's own 4xx and 5xx
+  responses.** Without the second part an expired token reaches the page as an
+  unreadable CORS failure instead of a 401 it can act on.
+- **Throttled to 5 requests a second, burst 10.** One owner, polling every few
+  seconds. Every Refresh is a full pull against Planon, so a runaway page should
+  hit a wall here first.
+- **Access log to a 13 month log group, with the signed-in user's email on every
+  line.** This is the record of who pulled Planon data and when.
+- **Execution logging at `ERROR`, payloads never logged; X-Ray on.** The two
+  non-Lambda integrations have no logs of their own, so this is the only place
+  their failures show up. Clears Security Hub APIGateway.1 and APIGateway.3.
+  API Gateway makes that log group itself, with no retention set.
+- **The stack does not set the account-wide API Gateway logging role.** Logging
+  needs it (AWS docs, "Permissions for CloudWatch logging"), but it is one setting
+  per account and region, and CDK's recommended `disableCloudWatchRole` flag exists
+  because a stack that owns it can break other APIs' logging when it is deleted.
+  **If the account has none, the first deploy fails at the stage.** The check and
+  the fix are in `cdk/README.md`.
+- **Stage is `prod`; no custom domain, API keys or usage plan.** None are in the
+  diagram. Cognito is the access control.
+- **`cdk/README.md` documents the three calls.** The page is not written yet, and
+  the response shapes are choices made here.
