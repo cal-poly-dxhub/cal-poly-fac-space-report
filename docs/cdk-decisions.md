@@ -56,7 +56,7 @@ in the order the pieces were built.
   covers North America.
 - **AWS managed `SecurityHeadersPolicy` and default `CachingOptimized`.** Managed
   policies over hand-rolled ones. The page only changes when someone uploads it,
-  so invalidate `/*` after an upload.
+  and the deploy invalidates `/*` itself (section 9).
 - **Unknown paths get the page, not an error.** With OAC, CloudFront cannot list
   the bucket, so S3 answers a missing key with 403 and the visitor sees raw XML.
   One error response maps 403 to `/index.html`. Fine for a one-page site; it would
@@ -66,9 +66,10 @@ in the order the pieces were built.
 - **Buckets keep CDK's default `RETAIN`.** `cdk destroy` leaves the bucket behind.
   The alternative, `auto_delete_objects`, adds a custom-resource Lambda that is not
   in the diagram.
-- **The stack does not upload the page.** The page does not exist yet, and
-  `BucketDeployment` adds another custom-resource Lambda. Upload with
-  `aws s3 sync`; the `SiteBucketName` and `SiteUrl` outputs are there for that.
+- **The stack uploads the page (`BucketDeployment`). Reverses an earlier "does
+  not".** The page now exists, and Kyle asked that a deploy be testable straight
+  away. It adds a CDK-managed Lambda and layer that are not in the diagram, which
+  is why it was avoided before. See section 9.
 
 ## 3. Data bucket
 
@@ -342,6 +343,50 @@ in the order the pieces were built.
   diagram. Cognito is the access control.
 - **`cdk/README.md` documents the three calls.** The page is not written yet, and
   the response shapes are choices made here.
+
+## 9. Static page
+
+- **Plain HTML, CSS and JavaScript in `cdk/site/`, no framework and no build
+  step.** Two buttons and a table do not need one, and whoever inherits this can
+  read every line that ships.
+- **`config.json` is written by CDK at deploy time** (`Source.json_data`) with the
+  API URL, the sign-in domain and the client id. Those only exist after a deploy,
+  and this way nobody copies them by hand.
+- **CloudFront is invalidated on every deploy and objects carry `no-cache`.**
+  Otherwise a fixed page could sit behind a day-old cached copy.
+- **Looks like Planon's web client in Cal Poly's colors.** Planon's own terms for
+  its layout are a ribbon, a list panel and a workspace; this page is that shape.
+  Colors are from Cal Poly's published palette: Poly Green, Mustang Gold, the muted
+  secondaries. Type is Source Sans, which calpoly.edu itself serves for body text.
+  It is the one Cal Poly face with an open license (SIL OFL), so it is self-hosted
+  with its license file, 28 KB, and nothing is fetched from a third party.
+- **No Cal Poly logo.** The ribbon says "Cal Poly" in text. The logo has its own
+  usage rules and this is an internal tool.
+- **The report is shown as a grid, not just offered as a download.** Testing the
+  deployment means reading the result. NUM, SFX and FAC NAME stay frozen while the
+  rest scrolls. "Subtotal" and "Total" labels are added on screen only; the
+  downloaded file is byte for byte what the API returned.
+- **Generate stays disabled until the last refresh finished cleanly.** A failed
+  pull can leave old and new tables mixed, and a report from that would be wrong
+  without looking wrong.
+- **Tokens are held in memory only; PKCE with `S256`; the refresh token is thrown
+  away.** All three follow AWS's Cognito guidance (sources in section 7 and
+  `cdk/README.md`). A reload therefore signs in again, which the page does
+  silently with `prompt=none` while Cognito's one-hour session lasts. A 401 from
+  the API puts the sign-in panel back with the reason.
+- **A content security policy in a `<meta>` tag:** scripts, styles and fonts from
+  the site only, network calls only to `*.amazonaws.com` and
+  `*.amazoncognito.com`. The exact hosts are not known until deploy, hence the
+  wildcards. Nothing the API returns is ever inserted as HTML.
+- **Polls every 4 seconds and gives up at 16 minutes,** one minute past the pull
+  function's hard stop, and says so.
+- **Checked in real Chrome against a stand-in backend,** not against AWS: a fake
+  Cognito that verifies the PKCE challenge, a fake API that enforces the token,
+  and a CSV written by the pipeline's own `write_csv`. Sign-in, silent re-sign-in,
+  refresh, a failed refresh, generate, download, an expired session, sign-out, the
+  409 path and phone width all pass. Real Cognito and API Gateway behaviour is
+  still unverified until a deploy.
+- **The deployment's own log group keeps one month.** It only records uploads.
 
 ## Standards applied, and findings accepted
 

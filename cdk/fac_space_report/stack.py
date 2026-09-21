@@ -10,6 +10,7 @@ from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_s3_deployment as s3deploy
 from aws_cdk import aws_secretsmanager as secretsmanager
 from constructs import Construct
 
@@ -369,6 +370,32 @@ class FacSpaceReportStack(Stack):
         # "Generate endpoint", steps 5-6: a plain synchronous proxy invoke. The
         # function reads ?ref_date= and answers with report.csv.
         api.root.add_resource("generate").add_method("GET", apigw.LambdaIntegration(build_fn))
+
+        # The page in cdk/site/, uploaded on every deploy along with a config.json that
+        # tells it where the API and the sign-in pages are. Those addresses only exist
+        # once the stack is deployed, so CDK fills them in at deploy time.
+        s3deploy.BucketDeployment(
+            self,
+            "SiteContent",
+            destination_bucket=site_bucket,
+            sources=[
+                s3deploy.Source.asset(str(REPO_ROOT / "cdk" / "site")),
+                s3deploy.Source.json_data(
+                    "config.json",
+                    {
+                        "apiUrl": api.url,
+                        "loginUrl": login_domain.base_url(),
+                        "clientId": site_client.user_pool_client_id,
+                    },
+                ),
+            ],
+            # CloudFront drops its cached copy on each deploy, and browsers are told
+            # to check back rather than trust theirs.
+            distribution=site,
+            distribution_paths=["/*"],
+            cache_control=[s3deploy.CacheControl.no_cache()],
+            log_group=logs.LogGroup(self, "SiteContentLogs", retention=logs.RetentionDays.ONE_MONTH),
+        )
 
         CfnOutput(self, "SiteUrl", value=site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)

@@ -57,13 +57,31 @@ update in place.
 The two Lambda log groups are always on and need no setup. A failed pull or build
 explains itself there.
 
-## What the page needs
+## Testing a deploy
 
-The static page is not in this repo yet. When it is, upload it to `<SiteBucketName>`
-and invalidate `/*` on the distribution. It needs four stack outputs: `LoginUrl` and
-`SiteClientId` to send the browser to sign in (authorization code flow with PKCE),
-`SiteUrl` as the redirect address, and `ApiEndpoint...` for the calls below. Every
-call sends the ID token in the `Authorization` header.
+1. `cdk deploy`. It uploads the page and writes its `config.json`, so there is
+   nothing to copy by hand.
+2. Paste the three printed commands (see "After the first deploy").
+3. Open `SiteUrl` and sign in.
+4. Refresh from Planon. The status line counts the elapsed time, and when it
+   finishes the panel shows how many rows each table has. If it fails, the reason
+   is shown in the same place, for example a 401 from Planon.
+5. Pick a reference date and generate the report. It appears as a grid, with the
+   center bands and subtotals of Planon's own export, and Download CSV saves the
+   exact bytes the API returned.
+
+"Deployment details" under Planon data shows which API, sign-in domain and app
+client the page is talking to, who is signed in, and when the session ends.
+
+## The page
+
+`site/` is plain HTML, CSS and JavaScript with no build step. It uses Cal Poly's
+colors and Source Sans, the body typeface on calpoly.edu, served from `site/fonts/`
+under its open license. Nothing is loaded from a third party.
+
+Sign-in is the authorization code flow with PKCE against Cognito's pages. Tokens
+live in memory only, so a reload signs in again, silently while Cognito's own
+one-hour session lasts. Every API call sends the ID token in `Authorization`.
 
 | Call | Does | Answers |
 | --- | --- | --- |
@@ -73,11 +91,3 @@ call sends the ID token in the `Authorization` header.
 
 `POST /refresh` deletes the old marker before it does anything else, so any marker
 the poll sees belongs to the pull just started.
-
-Three things the stack cannot enforce, all from AWS's Cognito guidance:
-
-- Cognito treats PKCE as optional, so the page has to send it. `S256` is the only
-  method Cognito accepts, with a fresh verifier for every sign-in.
-- Keep tokens in memory. AWS: "Don't store ID and access tokens in local storage."
-- The sign-in session on Cognito's side lasts one hour and token refresh does not
-  extend it, so expect to send the owner back through sign-in after that.
