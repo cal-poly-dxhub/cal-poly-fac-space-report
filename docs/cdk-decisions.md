@@ -25,8 +25,10 @@ in the order the pieces were built.
 - **No `env` on the stack (account- and region-agnostic).** The campus account and
   region are not in the diagram and the target is synth, not deploy. `app.py`
   marks the one line to change.
-- **One tag, `Project=fac-space-report`, on everything.** So campus staff can find
-  and cost-allocate these resources. Not in the diagram; cheap and conventional.
+- **One tag, `Project=fac-space-report`, set as a stack tag.** So campus staff can
+  find and cost-allocate these resources. Set with `tags=` on the stack, not
+  `Tags.of()`: with `explicitStackTags` on, `Tags.of()` never reaches the stack.
+  CloudFormation copies stack tags to every resource that supports them.
 - **`cdk/.gitignore` rather than editing the root one.** Keeps the CDK app
   self-contained. Ignores `cdk.out/` and the venv.
 

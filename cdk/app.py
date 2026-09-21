@@ -11,8 +11,8 @@ FacSpaceReportStack(
     app,
     "FacSpaceReportStack",
     description="fac-space-report: CSU facility report, per docs/aws-deployment.drawio",
+    # Stack tags: CloudFormation copies them onto every resource that supports tags.
+    tags={"Project": "fac-space-report"},
 )
-
-cdk.Tags.of(app).add("Project", "fac-space-report")
 
 app.synth()
