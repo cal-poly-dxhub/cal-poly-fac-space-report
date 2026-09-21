@@ -12,3 +12,6 @@ __pycache__/
 source_data/
 reference documents/
 *.csv
+
+# draw.io autosave backups
+.$*.bkp
