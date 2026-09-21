@@ -1,0 +1,3 @@
+# pipeline/build_report.py is standard library only; this is for the handler. See
+# the note in ../pull/requirements.txt on why boto3 is packaged.
+boto3==1.43.99

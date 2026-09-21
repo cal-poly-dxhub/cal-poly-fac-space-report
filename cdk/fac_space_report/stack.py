@@ -153,6 +153,7 @@ class FacSpaceReportStack(Stack):
             architecture=ARCHITECTURE,
             handler="handler.handler",
             code=bundle(
+                "pip install -r cdk/functions/build/requirements.txt -t /asset-output --no-compile --no-cache-dir",
                 "cp cdk/functions/build/handler.py pipeline/build_report.py /asset-output",
             ),
             memory_size=1024,

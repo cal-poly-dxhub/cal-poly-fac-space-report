@@ -126,10 +126,13 @@ in the order the pieces were built.
 - **Bundling platform pinned to the function's architecture.** `requests` pulls in
   `charset_normalizer`, which has compiled `.so` files. Without the pin, an x86
   laptop would build x86 binaries into an ARM function and it would still synth.
-- **Own `requirements.txt` with `requests==2.34.2`, not the connector's.** The
-  connector's file also lists `boto3`, which the runtime already has and which
-  would add roughly 100 MB. Transitive packages float, so `certifi`'s CA bundle
-  stays current on each build. `requests` now has two version specs to keep in step.
+- **Own `requirements.txt`, pinned exactly: `requests==2.34.2`, `boto3==1.43.99`.**
+  The connector's file uses open ranges, which would make the zip differ from one
+  build to the next. `boto3` is packaged even though the runtime has a copy: the
+  Lambda docs say to use the runtime's copy "only when you can't include additional
+  packages", because it changes without notice. Reverses an earlier call to leave
+  it out. Cost is a 29 MB zip against a 250 MB limit. Transitive packages float, so
+  `certifi`'s CA bundle stays current. `requests` now has two specs to keep in step.
 - **Python 3.13 on arm64.** 3.13 is the version the pipeline has been run and
   compared against Planon on locally; 3.14 exists but buys nothing here. arm64 is
   cheaper per millisecond and AWS's default recommendation for new functions.
@@ -180,8 +183,9 @@ in the order the pieces were built.
 - **1024 MB, 29 second timeout.** Someone is waiting on this one, and Lambda CPU
   scales with memory. API Gateway drops an integration at 29 seconds, so a longer
   timeout could never deliver a result.
-- **Same Docker bundling as pull, though it only copies two files.** One packaging
-  mechanism to understand. The pipeline is standard library only, so no pip step.
+- **Same Docker bundling as pull.** One packaging mechanism to understand. The
+  pipeline is standard library only; the pip step is there for the pinned `boto3`
+  the handler uses, for the reason given in section 5.
 - **Same runtime, architecture and log retention as pull.** Read-only grant on
   `tables/*`; the L2 grant also allows listing the bucket, which is harmless.
 

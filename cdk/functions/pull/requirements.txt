@@ -1,3 +1,5 @@
-# What connector/planon_odata.py imports. boto3 is left out on purpose: the
-# Lambda runtime ships it.
+# What connector/planon_odata.py and the handler import. boto3 is pinned here even
+# though the Lambda runtime has a copy: AWS recommends packaging the SDK you tested
+# with, because the runtime's copy changes without notice.
 requests==2.34.2
+boto3==1.43.99
