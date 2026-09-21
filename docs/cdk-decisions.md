@@ -56,6 +56,10 @@ in the order the pieces were built.
 - **AWS managed `SecurityHeadersPolicy` and default `CachingOptimized`.** Managed
   policies over hand-rolled ones. The page only changes when someone uploads it,
   so invalidate `/*` after an upload.
+- **Unknown paths get the page, not an error.** With OAC, CloudFront cannot list
+  the bucket, so S3 answers a missing key with 403 and the visitor sees raw XML.
+  One error response maps 403 to `/index.html`. Fine for a one-page site; it would
+  hide a missing asset on a bigger one.
 - **No access logging, no WAF.** One-owner internal tool; each adds a bucket or a
   monthly charge that is not in the diagram. Revisit if campus security asks
   (Security Hub controls CloudFront.5 and CloudFront.6).

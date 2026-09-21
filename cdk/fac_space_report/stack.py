@@ -64,6 +64,15 @@ class FacSpaceReportStack(Stack):
                 response_headers_policy=cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
             ),
             price_class=cloudfront.PriceClass.PRICE_CLASS_100,
+            # S3 answers a missing key with 403 here, because CloudFront may not list
+            # the bucket. Show the page instead of a raw XML error.
+            error_responses=[
+                cloudfront.ErrorResponse(
+                    http_status=403,
+                    response_http_status=200,
+                    response_page_path="/index.html",
+                )
+            ],
         )
         self.site_url = f"https://{site.distribution_domain_name}"
 
