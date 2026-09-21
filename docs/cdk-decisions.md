@@ -78,9 +78,11 @@ in the order the pieces were built.
 - **SSE-S3, not a KMS key.** Building names and square footage are not regulated
   data. A customer key adds a monthly charge and a key policy to maintain. One
   line to change if campus security wants KMS.
-- **No versioning, no lifecycle rules.** The diagram says "current copy, replaced
-  by each pull", and Planon stays the system of record, so a bad copy is fixed by
-  pulling again. Overwritten objects leave nothing to expire.
+- **Versioned, with replaced objects expiring after 90 days. Same on the site
+  bucket.** Reverses an earlier "no versioning" call. The current version is still
+  the diagram's "current copy, replaced by each pull"; the 90 days let someone
+  compare against or restore the previous pull. It is a setting on a bucket the
+  diagram already has, and it clears Security Hub S3.14, S3.13 and S3.10.
 - **Key layout: `tables/<Table>.csv` and `marker/complete.json`.** Constants at
   the top of `stack.py`, handed to the Lambdas as environment variables so the
   layout is written down once. The marker is JSON so it can carry the pull's

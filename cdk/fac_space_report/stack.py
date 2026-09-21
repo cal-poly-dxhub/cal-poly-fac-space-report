@@ -46,6 +46,13 @@ class FacSpaceReportStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Both buckets keep replaced objects for 90 days, so a bad upload or a bad
+        # pull can be rolled back, then let them expire.
+        keep_old_versions = s3.LifecycleRule(
+            noncurrent_version_expiration=Duration.days(90),
+            abort_incomplete_multipart_upload_after=Duration.days(7),
+        )
+
         # "S3 static site". The bucket is private; CloudFront is the only way in.
         site_bucket = s3.Bucket(
             self,
@@ -53,6 +60,8 @@ class FacSpaceReportStack(Stack):
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
             enforce_ssl=True,
+            versioned=True,
+            lifecycle_rules=[keep_old_versions],
         )
         site = cloudfront.Distribution(
             self,
@@ -78,13 +87,15 @@ class FacSpaceReportStack(Stack):
         self.site_url = f"https://{site.distribution_domain_name}"
 
         # "S3 data bucket": the current copy of the five tables plus the completion
-        # marker. Each pull overwrites the last, so there is no versioning.
+        # marker. Each pull replaces the last; the current version is the current copy.
         data_bucket = s3.Bucket(
             self,
             "DataBucket",
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
             enforce_ssl=True,
+            versioned=True,
+            lifecycle_rules=[keep_old_versions],
         )
 
         # "Secrets Manager, Planon credentials". Created holding a placeholder in the
