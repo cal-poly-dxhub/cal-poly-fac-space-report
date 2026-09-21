@@ -15,13 +15,16 @@ in the order the pieces were built.
   ranged.** An exact pin means the same template synthesizes next year as today.
   Upgrading is a deliberate one-line change, not something that happens on
   `pip install`. `constructs` keeps the range `aws-cdk-lib` itself declares.
-- **`cdk.json` is `cdk init` output (CLI 2.1129.0) plus the two flags that CLI's
-  template lags behind the library on.** Result matches the library's own
+- **`cdk.json` is `cdk init` output (CLI 2.1129.0), kept verbatim, plus the two
+  flags that CLI's template lags behind the library on:**
+  `@aws-cdk/aws-ecs:removeEmptyLoadBalancers` (irrelevant here, no ECS) and
+  `@aws-cdk/core:validateAgainstDefaultRules`. Result matches the library's own
   `recommended-feature-flags.json` exactly. New apps should start on current
   defaults; a trimmed list silently means older behavior.
-- **`@aws-cdk/core:validateAgainstDefaultRules` is `true`.** One of those two
-  flags. It turns CloudFormation validation findings from warnings into synth
-  failures, which makes "clean synth" a stronger claim.
+- **`@aws-cdk/core:validateAgainstDefaultRules` is `true`.** It turns
+  CloudFormation validation findings from warnings into synth failures, which
+  makes "clean synth" a stronger claim. Checked that it bites: a scratch stack
+  with a bogus S3 property failed synth with exit code 1.
 - **No `env` on the stack (account- and region-agnostic).** The campus account and
   region are not in the diagram and the target is synth, not deploy. `app.py`
   marks the one line to change.
@@ -29,6 +32,8 @@ in the order the pieces were built.
   find and cost-allocate these resources. Set with `tags=` on the stack, not
   `Tags.of()`: with `explicitStackTags` on, `Tags.of()` never reaches the stack.
   CloudFormation copies stack tags to every resource that supports them.
+- **`cdk/README.md` with the four setup commands.** Whoever inherits this should
+  be able to synth without reading CDK docs first.
 - **`cdk/.gitignore` rather than editing the root one.** Keeps the CDK app
   self-contained. Ignores `cdk.out/` and the venv.
 
