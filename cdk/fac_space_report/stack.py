@@ -98,7 +98,7 @@ class FacSpaceReportStack(Stack):
                 )
             ],
         )
-        self.site_url = f"https://{site.distribution_domain_name}"
+        site_url = f"https://{site.distribution_domain_name}"
 
         # "S3 data bucket": the current copy of the five tables plus the completion
         # marker. Each pull replaces the last; the current version is the current copy.
@@ -175,7 +175,7 @@ class FacSpaceReportStack(Stack):
             environment={
                 "DATA_BUCKET": data_bucket.bucket_name,
                 "TABLES_PREFIX": TABLES_PREFIX,
-                "SITE_ORIGIN": self.site_url,
+                "SITE_ORIGIN": site_url,
             },
         )
         data_bucket.grant_read(build_fn, f"{TABLES_PREFIX}*")
@@ -221,8 +221,8 @@ class FacSpaceReportStack(Stack):
             o_auth=cognito.OAuthSettings(
                 flows=cognito.OAuthFlows(authorization_code_grant=True),
                 scopes=[cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL],
-                callback_urls=[self.site_url, f"{self.site_url}/"],
-                logout_urls=[self.site_url, f"{self.site_url}/"],
+                callback_urls=[site_url, f"{site_url}/"],
+                logout_urls=[site_url, f"{site_url}/"],
             ),
             refresh_token_validity=Duration.days(1),
         )
@@ -238,7 +238,7 @@ class FacSpaceReportStack(Stack):
 
         # "API Gateway REST API". Every method requires a Cognito token; that is set
         # once as the default so a new method cannot be added open by mistake.
-        cors_origin = {"method.response.header.Access-Control-Allow-Origin": f"'{self.site_url}'"}
+        cors_origin = {"method.response.header.Access-Control-Allow-Origin": f"'{site_url}'"}
         api = apigw.RestApi(
             self,
             "Api",
@@ -251,7 +251,7 @@ class FacSpaceReportStack(Stack):
                 ),
             ),
             default_cors_preflight_options=apigw.CorsOptions(
-                allow_origins=[self.site_url],
+                allow_origins=[site_url],
                 allow_methods=["GET", "POST"],
                 allow_headers=["Authorization", "Content-Type"],
             ),
@@ -292,7 +292,7 @@ class FacSpaceReportStack(Stack):
             api.add_gateway_response(
                 name,
                 type=response_type,
-                response_headers={"Access-Control-Allow-Origin": f"'{self.site_url}'"},
+                response_headers={"Access-Control-Allow-Origin": f"'{site_url}'"},
             )
 
         # "Refresh endpoint", step 2: POST starts a pull and returns at once. The
@@ -370,7 +370,7 @@ class FacSpaceReportStack(Stack):
         # function reads ?ref_date= and answers with report.csv.
         api.root.add_resource("generate").add_method("GET", apigw.LambdaIntegration(build_fn))
 
-        CfnOutput(self, "SiteUrl", value=self.site_url)
+        CfnOutput(self, "SiteUrl", value=site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)
         CfnOutput(self, "DataBucketName", value=data_bucket.bucket_name)
         CfnOutput(self, "PlanonSecretName", value=planon_secret.secret_name)
