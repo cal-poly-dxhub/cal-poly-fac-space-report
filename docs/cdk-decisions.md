@@ -186,6 +186,13 @@ in the order the pieces were built.
   reads data and changes nothing, so it is a GET. The handler rejects anything
   that is not a real date with 400, and normalises it, because the pipeline
   compares dates as strings.
+- **The pipeline's exit status is checked.** `main()` only returns 0 or raises
+  today. If that ever changes, a non-zero status becomes an error here instead of a
+  200 with a stale file.
+- **The report has to fit in 6 MB.** That is Lambda's limit on a synchronous
+  response, and it binds before API Gateway's 10 MB. Neither can be raised. At 187
+  facilities the report is a few tens of KB. If it ever gets close, the design has
+  to change to a presigned S3 link, which the diagram does not show.
 - **409 with "Run Refresh first" when the tables are missing.** Otherwise a fresh
   deploy's first click returns a bare 500.
 - **The function sets the CORS headers, and gets the site's origin as

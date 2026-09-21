@@ -53,9 +53,11 @@ def handler(event, context):
             return respond(409, "No Planon data yet. Run Refresh first.")
         raise
 
-    build_report.main(
+    status = build_report.main(
         ["--source", SOURCE_DIR, "--ref-date", ref_date, "--out", REPORT_PATH]
     )
+    if status != 0:
+        raise RuntimeError(f"build_report exited with status {status}")
     with open(REPORT_PATH, encoding="utf-8") as handle:
         return respond(
             200,
