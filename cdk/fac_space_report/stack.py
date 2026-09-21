@@ -122,6 +122,32 @@ class FacSpaceReportStack(Stack):
         data_bucket.grant_write(pull_fn, f"{TABLES_PREFIX}*")
         data_bucket.grant_write(pull_fn, MARKER_KEY)
 
+        # "build Lambda". Invoked synchronously by the Generate endpoint with the
+        # reference date: reads the tables, returns report.csv in the response.
+        build_fn = lambda_.Function(
+            self,
+            "BuildFunction",
+            description="Builds report.csv from the tables in the data bucket",
+            runtime=RUNTIME,
+            architecture=ARCHITECTURE,
+            handler="handler.handler",
+            code=bundle(
+                "cp cdk/functions/build/handler.py pipeline/build_report.py /asset-output",
+            ),
+            memory_size=1024,
+            # API Gateway gives up on an integration after 29 seconds.
+            timeout=Duration.seconds(29),
+            log_group=logs.LogGroup(
+                self, "BuildLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
+            ),
+            environment={
+                "DATA_BUCKET": data_bucket.bucket_name,
+                "TABLES_PREFIX": TABLES_PREFIX,
+                "SITE_ORIGIN": self.site_url,
+            },
+        )
+        data_bucket.grant_read(build_fn, f"{TABLES_PREFIX}*")
+
         CfnOutput(self, "SiteUrl", value=self.site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)
         CfnOutput(self, "DataBucketName", value=data_bucket.bucket_name)

@@ -149,3 +149,32 @@ in the order the pieces were built.
   campus, and that is a diagram change. **Unverified. Check before deploying.**
 - **Planon base URL is not configured here.** The connector's default is the Cal
   Poly endpoint; repeating it would make two places to change.
+
+## 6. build Lambda
+
+- **Real, thin handler in `cdk/functions/build/handler.py`, calling
+  `pipeline/build_report.py` unchanged through its own `main()`.** It downloads the
+  five tables into the folder layout `LocalSource` already reads, so the pipeline
+  needed no S3 code. Checked against a made-up dataset with hand-checkable sums;
+  never against real Planon data, which is not in the repo.
+- **Speaks API Gateway's Lambda proxy format.** That is what the L2
+  `LambdaIntegration` uses by default, and it lets the function set
+  `Content-Type: text/csv` and the download filename itself. The report goes back
+  in the response body, as the diagram says; it is never written to S3.
+- **The reference date arrives as `?ref_date=YYYY-MM-DD`.** Generating a report
+  reads data and changes nothing, so it is a GET. The handler rejects anything
+  that is not a real date with 400, and normalises it, because the pipeline
+  compares dates as strings.
+- **409 with "Run Refresh first" when the tables are missing.** Otherwise a fresh
+  deploy's first click returns a bare 500.
+- **The function sets the CORS headers, and gets the site's origin as
+  `SITE_ORIGIN`.** The page (CloudFront) and the API are different origins, and
+  with a proxy integration only the function can add response headers. The
+  allowed origin is the one site, not `*`.
+- **1024 MB, 29 second timeout.** Someone is waiting on this one, and Lambda CPU
+  scales with memory. API Gateway drops an integration at 29 seconds, so a longer
+  timeout could never deliver a result.
+- **Same Docker bundling as pull, though it only copies two files.** One packaging
+  mechanism to understand. The pipeline is standard library only, so no pip step.
+- **Same runtime, architecture and log retention as pull.** Read-only grant on
+  `tables/*`; the L2 grant also allows listing the bucket, which is harmless.
