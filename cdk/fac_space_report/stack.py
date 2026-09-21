@@ -187,10 +187,11 @@ class FacSpaceReportStack(Stack):
                 require_digits=True,
                 require_symbols=True,
             ),
-            mfa=cognito.Mfa.OPTIONAL,
+            mfa=cognito.Mfa.REQUIRED,
             mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True),
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
             feature_plan=cognito.FeaturePlan.ESSENTIALS,
+            deletion_protection=True,
         )
         # Sign-in happens on Cognito's own managed login pages, so the site never
         # handles a password. The page sends the browser there and gets a code back.

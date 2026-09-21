@@ -217,13 +217,24 @@ in the order the pieces were built.
 - **Email sign-in, case-insensitive; 12 characters with all four character
   classes, written out in full.** Left to defaults, the template omits the
   character-class rules and it is unclear what Cognito then assumes.
-- **MFA optional, authenticator app only, no SMS.** Required MFA is the better
-  end state, but it locks out an owner who signs in once a year and lost their
-  phone. SMS needs an SNS role and spend limit. Campus security may want
-  `REQUIRED`; it is one word to change.
-- **Essentials plan, Cognito's built-in email.** Managed login needs Essentials.
-  At a handful of users both are inside the free allowance, and built-in email's
-  50 a day limit is far more than invites and resets will use.
+- **MFA required, authenticator app only, no SMS.** Reverses an earlier
+  "optional". Security Hub Cognito.5 expects MFA on a password pool. The lockout
+  worry behind "optional" was weak: managed login walks the user through
+  authenticator setup, and an admin fixes a lost phone by recreating the account
+  (command in `cdk/README.md`). SMS needs an SNS role and a spend limit. Email
+  codes need an SES identity, which is a campus decision.
+- **Deletion protection on.** Security Hub Cognito.6. To remove the pool on
+  purpose, turn the setting off first.
+- **No threat protection (Cognito.1 and Cognito.4 will flag this).** It needs the
+  Plus plan, which at a few users is pennies, so cost is not the reason. AWS's own
+  guide says to run it in audit mode for two weeks before enforcing, its default
+  enforced response blocks sign-in at every risk level, and its adaptive part
+  requires MFA to be optional. A once-a-year sign-in from a new laptop is exactly
+  what it scores as risky. Required MFA covers the same threat here.
+- **Essentials plan, Cognito's built-in email.** Managed login is not available on
+  Lite. Essentials is free up to 10,000 monthly users. AWS says built-in email's
+  daily cap is too low for a typical production app; invites and resets for a
+  handful of staff are nowhere near it, and the alternative needs an SES identity.
 - **Callback and logout URLs: the site URL with and without a trailing slash.**
   Cognito matches `redirect_uri` exactly, and that mismatch is the classic
   first-deploy error.
