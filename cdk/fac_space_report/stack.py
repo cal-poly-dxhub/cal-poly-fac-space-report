@@ -195,8 +195,12 @@ class FacSpaceReportStack(Stack):
                 require_digits=True,
                 require_symbols=True,
             ),
-            mfa=cognito.Mfa.REQUIRED,
-            mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True),
+            # Off for the first deploy: sign-in is email and password only. To require
+            # an authenticator app, replace this line with the two below and redeploy.
+            # It updates the pool in place, and managed login walks users through setup.
+            #   mfa=cognito.Mfa.REQUIRED,
+            #   mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True),
+            mfa=cognito.Mfa.OFF,
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
             feature_plan=cognito.FeaturePlan.ESSENTIALS,
             deletion_protection=True,
@@ -375,5 +379,6 @@ class FacSpaceReportStack(Stack):
         CfnOutput(self, "DataBucketName", value=data_bucket.bucket_name)
         CfnOutput(self, "PlanonSecretName", value=planon_secret.secret_name)
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
+
         CfnOutput(self, "SiteClientId", value=site_client.user_pool_client_id)
         CfnOutput(self, "LoginUrl", value=login_domain.base_url())

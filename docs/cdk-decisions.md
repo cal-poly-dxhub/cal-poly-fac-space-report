@@ -243,12 +243,16 @@ in the order the pieces were built.
 - **Email sign-in, case-insensitive; 12 characters with all four character
   classes, written out in full.** Left to defaults, the template omits the
   character-class rules and it is unclear what Cognito then assumes.
-- **MFA required, authenticator app only, no SMS.** Reverses an earlier
-  "optional". Security Hub Cognito.5 expects MFA on a password pool. The lockout
-  worry behind "optional" was weak: managed login walks the user through
-  authenticator setup, and an admin fixes a lost phone by recreating the account
-  (command in `cdk/README.md`). SMS needs an SNS role and a spend limit. Email
-  codes need an SES identity, which is a campus decision.
+- **MFA is off for the first deploy. Kyle's call, 2026-09-21.** Sign-in is email
+  and password, so the first deploy can be tried end to end without an
+  authenticator. This reverses "required", and Security Hub Cognito.5 will flag
+  it. What still stands between the public sign-in page and a Planon pull: no self
+  sign-up, the 12 character policy, and Cognito's own lockout on repeated failures.
+  Turn it on before real users: two lines, shown in a comment next to `mfa=`.
+  CloudFormation lists `MfaConfiguration` as "Update requires: No interruption",
+  and AWS says managed login then prompts each user to set up an authenticator,
+  so existing accounts survive. When it goes on: authenticator app only. SMS needs
+  an SNS role and a spend limit; email codes need an SES identity.
 - **Deletion protection on.** Security Hub Cognito.6. To remove the pool on
   purpose, turn the setting off first.
 - **No threat protection (Cognito.1 and Cognito.4 will flag this).** It needs the
@@ -256,7 +260,8 @@ in the order the pieces were built.
   guide says to run it in audit mode for two weeks before enforcing, its default
   enforced response blocks sign-in at every risk level, and its adaptive part
   requires MFA to be optional. A once-a-year sign-in from a new laptop is exactly
-  what it scores as risky. Required MFA covers the same threat here.
+  what it scores as risky. With MFA off for now nothing covers this threat; decide
+  the two together.
 - **Essentials plan, Cognito's built-in email.** Managed login is not available on
   Lite. Essentials is free up to 10,000 monthly users. AWS says built-in email's
   daily cap is too low for a typical production app; invites and resets for a
@@ -337,7 +342,7 @@ resource the diagram already has was adopted; one that needs a new component, a
 monthly charge, or a campus decision is listed here instead.**
 
 Adopted because of that review: bucket versioning and lifecycle (S3.10, S3.13,
-S3.14), required MFA (Cognito.5), pool deletion protection (Cognito.6), X-Ray
+S3.14), pool deletion protection (Cognito.6), X-Ray
 (Lambda.7, APIGateway.3), execution logging (APIGateway.1), packaged `boto3`.
 Already passing: S3.2, S3.3, S3.5, S3.8, CloudFront.1, CloudFront.3, CloudFront.13,
 Cognito.3, Lambda.1, Lambda.2.
@@ -355,6 +360,7 @@ Accepted. Security Hub will flag these, and each is a decision for campus, not a
 | S3.11, S3.15 | Event notifications, Object Lock | Nothing would consume the events. Object Lock stops a pull from replacing the tables. |
 | SecretsManager.1, .4 | Rotation | See section 4. |
 | **SecretsManager.3** | Secret used in the last 90 days | **It is only read when someone clicks Refresh, so it will be flagged as unused for most of the year. Do not delete it.** |
+| **Cognito.5** | MFA on the user pool | **Off for the first deploy, Kyle's call. Not meant to stay off. See section 7.** |
 | Cognito.1, Cognito.4 | Threat protection | See section 7. |
 | Lambda.3 | Functions in a VPC | See the VPC entry in section 5. |
 | APIGateway.2 | Client certificate for the backend | Both backends are AWS services called with IAM credentials; a client certificate is never presented. |
