@@ -78,11 +78,11 @@ in the order the pieces were built.
 - **SSE-S3, not a KMS key.** Building names and square footage are not regulated
   data. A customer key adds a monthly charge and a key policy to maintain. One
   line to change if campus security wants KMS.
-- **Versioned, with replaced objects expiring after 90 days. Same on the site
-  bucket.** Reverses an earlier "no versioning" call. The current version is still
-  the diagram's "current copy, replaced by each pull"; the 90 days let someone
-  compare against or restore the previous pull. It is a setting on a bucket the
-  diagram already has, and it clears Security Hub S3.14, S3.13 and S3.10.
+- **No versioning and no lifecycle rules, on either bucket. Kyle's call,
+  2026-09-21.** Versioning was added during the standards review and taken out
+  again. The diagram says "current copy, replaced by each pull", Planon stays the
+  system of record, so a bad copy is fixed by pulling again, and the page is
+  rebuilt from this repo. Security Hub S3.13 and S3.14 will flag it.
 - **Key layout: `tables/<Table>.csv` and `marker/complete.json`.** Constants at
   the top of `stack.py`, handed to the Lambdas as environment variables so the
   layout is written down once. The marker is JSON so it can carry the pull's
@@ -351,8 +351,11 @@ reference, read 2026-09-21). The line drawn: **a standard that is a setting on a
 resource the diagram already has was adopted; one that needs a new component, a
 monthly charge, or a campus decision is listed here instead.**
 
-Adopted because of that review: bucket versioning and lifecycle (S3.10, S3.13,
-S3.14), pool deletion protection (Cognito.6), packaged `boto3`.
+Adopted because of that review: pool deletion protection (Cognito.6) and packaged
+`boto3`. Four more were adopted and then taken out again on Kyle's call, because
+this runs about twice a year and the first deploy should need no setup: required
+MFA and API logging (now switches, see sections 7 and 8), X-Ray, and bucket
+versioning.
 Already passing: S3.2, S3.3, S3.5, S3.8, CloudFront.1, CloudFront.3, CloudFront.13,
 Cognito.3, Lambda.1, Lambda.2.
 
@@ -366,6 +369,7 @@ Accepted. Security Hub will flag these, and each is a decision for campus, not a
 | CloudFront.4, S3.7 | Origin failover, cross-region replication | A second region for a once-a-year report. |
 | CloudFront.17 | Signed URLs or cookies | The page is a public shell with no data in it. All data is behind the API. |
 | S3.17 | KMS keys on buckets | See section 3. |
+| S3.13, S3.14 | Lifecycle rules, versioning | Kyle's call. See section 3. |
 | S3.11, S3.15 | Event notifications, Object Lock | Nothing would consume the events. Object Lock stops a pull from replacing the tables. |
 | SecretsManager.1, .4 | Rotation | See section 4. |
 | **SecretsManager.3** | Secret used in the last 90 days | **It is only read when someone clicks Refresh, so it will be flagged as unused for most of the year. Do not delete it.** |
