@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from aws_cdk import AssetHashType, Aws, BundlingOptions, CfnOutput, Duration, Stack
+from aws_cdk import AssetHashType, Aws, BundlingOptions, CfnOutput, DockerVolume, Duration, Stack
 from aws_cdk import aws_apigateway as apigw
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
@@ -23,22 +23,33 @@ TABLES_PREFIX = "tables/"
 MARKER_KEY = "marker/complete.json"
 
 
-def bundle(*commands: str) -> lambda_.Code:
-    """Build a Lambda zip in the runtime's Docker image, with the repo at /asset-input.
+def bundle(function: str, reused_module: str) -> lambda_.Code:
+    """Build a Lambda zip in the runtime's Docker image.
 
-    The handlers reuse connector/ and pipeline/ as they are, so the whole repo is
-    mounted rather than one handler directory. Hashing the output, not the source,
-    keeps .git and .venv out of the asset hash.
+    The zip holds the handler from cdk/functions/<function>/, its pinned requirements,
+    and one module reused as-is from the rest of the repo. The container is shown that
+    folder and that one file, nothing else, so pip never runs next to connector/.env
+    or source_data/. The asset hash comes from the output, because the reused module
+    lives outside the asset's own folder.
     """
+    module = REPO_ROOT / reused_module
     return lambda_.Code.from_asset(
-        str(REPO_ROOT),
+        str(REPO_ROOT / "cdk" / "functions" / function),
         asset_hash_type=AssetHashType.OUTPUT,
         bundling=BundlingOptions(
             image=RUNTIME.bundling_image,
             # pip picks compiled wheels for the container it runs in, so the container
             # has to be the Lambda's architecture, whatever the laptop is.
             platform=ARCHITECTURE.docker_platform,
-            command=["bash", "-c", " && ".join(commands)],
+            volumes=[DockerVolume(host_path=str(module), container_path=f"/reused/{module.name}")],
+            command=[
+                "bash",
+                "-c",
+                # Wheels only: nothing from PyPI gets to run code during the build.
+                "pip install -r requirements.txt -t /asset-output"
+                " --only-binary=:all: --no-compile --no-cache-dir"
+                f" && cp handler.py /reused/{module.name} /asset-output",
+            ],
         ),
     )
 
@@ -124,10 +135,7 @@ class FacSpaceReportStack(Stack):
             runtime=RUNTIME,
             architecture=ARCHITECTURE,
             handler="handler.handler",
-            code=bundle(
-                "pip install -r cdk/functions/pull/requirements.txt -t /asset-output --no-compile --no-cache-dir",
-                "cp cdk/functions/pull/handler.py connector/planon_odata.py /asset-output",
-            ),
+            code=bundle("pull", "connector/planon_odata.py"),
             memory_size=512,
             timeout=Duration.minutes(15),
             tracing=lambda_.Tracing.ACTIVE,
@@ -156,10 +164,7 @@ class FacSpaceReportStack(Stack):
             runtime=RUNTIME,
             architecture=ARCHITECTURE,
             handler="handler.handler",
-            code=bundle(
-                "pip install -r cdk/functions/build/requirements.txt -t /asset-output --no-compile --no-cache-dir",
-                "cp cdk/functions/build/handler.py pipeline/build_report.py /asset-output",
-            ),
+            code=bundle("build", "pipeline/build_report.py"),
             memory_size=1024,
             # API Gateway gives up on an integration after 29 seconds by default.
             timeout=Duration.seconds(29),

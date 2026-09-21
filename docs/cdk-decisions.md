@@ -121,9 +121,14 @@ in the order the pieces were built.
   connector needs `requests`, which the Lambda runtime does not ship, so something
   has to run pip. Cost: synth needs Docker running. The alpha `PythonFunction`
   construct does the same job but is experimental, a bad fit for a handoff.
-- **The repo root is mounted, and the asset hash is taken from the output.** The
-  zip combines files from `cdk/` and `connector/`. Hashing the source would drag
-  in `.git` and `.venv`; hashing one handler folder would miss connector changes.
+- **The build container sees the handler folder and one reused file, nothing
+  else.** The zip combines files from `cdk/` and `connector/`. An earlier version
+  mounted the whole repo, which put `connector/.env` (live Planon login) and
+  `source_data/` in front of `pip` while it ran. CDK's `exclude` does not help:
+  it filters what gets hashed, not what gets mounted. pip also runs with
+  `--only-binary=:all:`, so nothing from PyPI executes during the build.
+- **The asset hash is taken from the output.** The reused module sits outside the
+  asset's own folder, so a source hash would miss changes to it.
 - **Bundling platform pinned to the function's architecture.** `requests` pulls in
   `charset_normalizer`, which has compiled `.so` files. Without the pin, an x86
   laptop would build x86 binaries into an ARM function and it would still synth.
