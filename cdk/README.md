@@ -12,3 +12,12 @@ Needs Python 3.10+, Node 20+, and the CDK CLI (`npm install -g aws-cdk`).
 
 `cdk synth` prints the CloudFormation template and writes it to `cdk.out/`. It
 does not touch AWS and needs no credentials.
+
+## After the first deploy
+
+The stack creates the Planon secret holding a placeholder. Put the real login in
+it once. `PlanonSecretName` is in the stack outputs.
+
+    aws secretsmanager put-secret-value \
+      --secret-id <PlanonSecretName> \
+      --secret-string '{"username": "...", "password": "..."}'

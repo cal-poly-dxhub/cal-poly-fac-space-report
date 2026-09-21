@@ -82,3 +82,24 @@ in the order the pieces were built.
   layout is written down once. The marker is JSON so it can carry the pull's
   finish time, which the page needs to tell a new marker from the previous one.
 - **Default `RETAIN`, same reasoning as the site bucket.**
+
+## 4. Planon credentials secret
+
+- **The stack creates the secret holding a placeholder; the real login is entered
+  by hand after deploy** (command in `cdk/README.md`). The alternative,
+  `secret_string_value`, writes the plaintext into `cdk.out/` and the
+  CloudFormation console.
+- **Placeholder is JSON, `{"username": "REPLACE_ME", "password": <random>}`.** It
+  shows whoever fills it in the exact shape the pull Lambda reads. The two keys
+  mirror the connector's `PLANON_USERNAME` and `PLANON_PASSWORD`.
+- **Do not edit the placeholder template after go-live.** A change to
+  `GenerateSecretString` makes CloudFormation generate a fresh value, which would
+  overwrite the real login. Not tested here, since nothing is deployed.
+- **No fixed `secret_name`.** A deleted secret holds its name for the recovery
+  window, so a fixed name can block a redeploy. The generated name still starts
+  with `PlanonCredentials`, and `PlanonSecretName` is a stack output.
+- **No rotation.** Planon issues and changes this password, not AWS, so there is
+  nothing for a rotation Lambda to call. Security Hub's SecretsManager.1 will flag
+  it; that is a known, accepted finding.
+- **Default AWS managed key and default removal policy (`Delete`).** Re-entering
+  two values after a rebuild is cheaper than an orphaned secret.

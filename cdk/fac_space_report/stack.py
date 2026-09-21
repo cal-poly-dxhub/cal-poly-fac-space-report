@@ -2,6 +2,7 @@ from aws_cdk import CfnOutput, Stack
 from aws_cdk import aws_cloudfront as cloudfront
 from aws_cdk import aws_cloudfront_origins as origins
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_secretsmanager as secretsmanager
 from constructs import Construct
 
 
@@ -48,6 +49,20 @@ class FacSpaceReportStack(Stack):
             enforce_ssl=True,
         )
 
+        # "Secrets Manager, Planon credentials". Created holding a placeholder in the
+        # right shape; the real username and password are entered after deploy and
+        # never appear in this repo or the template.
+        planon_secret = secretsmanager.Secret(
+            self,
+            "PlanonCredentials",
+            description="Planon datalake OData login used by the pull Lambda",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template='{"username": "REPLACE_ME"}',
+                generate_string_key="password",
+            ),
+        )
+
         CfnOutput(self, "SiteUrl", value=self.site_url)
         CfnOutput(self, "SiteBucketName", value=site_bucket.bucket_name)
         CfnOutput(self, "DataBucketName", value=data_bucket.bucket_name)
+        CfnOutput(self, "PlanonSecretName", value=planon_secret.secret_name)
