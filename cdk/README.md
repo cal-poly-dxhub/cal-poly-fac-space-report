@@ -15,18 +15,6 @@ first run downloads that image and takes a minute.
 `cdk synth` prints the CloudFormation template and writes it to `cdk.out/`. It
 does not touch AWS and needs no credentials.
 
-## Before the first deploy
-
-The API writes access and error logs to CloudWatch. API Gateway can only do that
-if the account has a logging role set for the region, which is an account-wide
-setting this stack deliberately does not touch. Check it:
-
-    aws apigateway get-account --query cloudwatchRoleArn
-
-If that prints `None`, the deploy fails at the API stage with "CloudWatch Logs role
-ARN must be set in account settings". Set it once per region, following "Permissions
-for CloudWatch logging" in the API Gateway developer guide.
-
 ## After the first deploy
 
 `cdk deploy` ends by printing its outputs. Three of them are complete commands with
@@ -44,14 +32,30 @@ the words in capitals.
 Both passwords pass through your shell history. Clear it, or have the owner change
 theirs with "Forgot your password?" on the sign-in page.
 
-Sign-in is email and password only. MFA is off for the first deploy; the comment
-next to `mfa=` in `fac_space_report/stack.py` shows the two lines that turn it on.
-That change updates the pool in place, and Cognito's sign-in pages then walk each
-user through setting up an authenticator app.
-
 To remove an account:
 
     aws cognito-idp admin-delete-user --user-pool-id <UserPoolId> --username EMAIL
+
+## Before real users
+
+Two switches at the top of `fac_space_report/stack.py` are off so that a first
+deploy needs nothing set up beforehand. Set each to `True` and redeploy. Both
+update in place.
+
+- `REQUIRE_MFA`. Until then sign-in is email and password only. Once on, Cognito's
+  sign-in pages walk each user through setting up an authenticator app.
+- `API_LOGGING`. The record of who called the API, plus API Gateway's own error log.
+  API Gateway can only write logs if the account has a logging role set for the
+  region, an account-wide setting this stack deliberately does not touch. Check:
+
+      aws apigateway get-account --query cloudwatchRoleArn
+
+  If that prints `None`, set it first, following "Permissions for CloudWatch
+  logging" in the API Gateway developer guide. Otherwise the deploy fails at the
+  API stage with "CloudWatch Logs role ARN must be set in account settings".
+
+The two Lambda log groups are always on and need no setup. A failed pull or build
+explains itself there.
 
 ## What the page needs
 

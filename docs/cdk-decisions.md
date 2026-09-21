@@ -253,7 +253,7 @@ in the order the pieces were built.
   authenticator. This reverses "required", and Security Hub Cognito.5 will flag
   it. What still stands between the public sign-in page and a Planon pull: no self
   sign-up, the 12 character policy, and Cognito's own lockout on repeated failures.
-  Turn it on before real users: two lines, shown in a comment next to `mfa=`.
+  Turn it on before real users: set `REQUIRE_MFA = True` at the top of `stack.py`.
   CloudFormation lists `MfaConfiguration` as "Update requires: No interruption",
   and AWS says managed login then prompts each user to set up an authenticator,
   so existing accounts survive. When it goes on: authenticator app only. SMS needs
@@ -321,18 +321,23 @@ in the order the pieces were built.
 - **Throttled to 5 requests a second, burst 10.** One owner, polling every few
   seconds. Every Refresh is a full pull against Planon, so a runaway page should
   hit a wall here first.
-- **Access log to a 13 month log group, with the signed-in user's email on every
-  line.** This is the record of who pulled Planon data and when.
-- **Execution logging at `ERROR`, payloads never logged; X-Ray on.** The two
-  non-Lambda integrations have no logs of their own, so this is the only place
-  their failures show up. Clears Security Hub APIGateway.1 and APIGateway.3.
-  API Gateway makes that log group itself, with no retention set.
-- **The stack does not set the account-wide API Gateway logging role.** Logging
-  needs it (AWS docs, "Permissions for CloudWatch logging"), but it is one setting
-  per account and region, and CDK's recommended `disableCloudWatchRole` flag exists
-  because a stack that owns it can break other APIs' logging when it is deleted.
-  **If the account has none, the first deploy fails at the stage.** The check and
-  the fix are in `cdk/README.md`.
+- **API Gateway's CloudWatch logging is off for the first deploy. Kyle's call,
+  2026-09-21.** It is the one thing that could fail a first deploy: API Gateway
+  can only write logs if the account has a logging role set for the region (AWS
+  docs, "Permissions for CloudWatch logging"), and a fresh account has none. The
+  stack does not set that role itself. It is one setting per account and region,
+  and CDK's recommended `disableCloudWatchRole` flag exists because a stack that
+  owns it can break other APIs' logging when it is deleted.
+- **It is a switch, `API_LOGGING`, not a deletion.** Turned on, it adds an access
+  log to a 13 month log group with the signed-in user's email on every line, which
+  is the record of who pulled Planon data and when, plus execution logging at
+  `ERROR` with payloads never logged. The two non-Lambda integrations have no
+  other logs, so until it is on their failures show up only as a 502 to the page.
+  Security Hub APIGateway.1 flags it while off. Both positions synthesize cleanly.
+- **`REQUIRE_MFA` is the same kind of switch**, so the two first-deploy shortcuts
+  sit together at the top of `stack.py`. X-Ray stays on: it needs no account setup
+  and clears APIGateway.3. The Lambda log groups stay on: they need no setup and
+  are where a failed pull or build explains itself.
 - **Stage is `prod`; no custom domain, API keys or usage plan.** None are in the
   diagram. Cognito is the access control.
 - **`cdk/README.md` documents the three calls.** The page is not written yet, and
@@ -348,7 +353,7 @@ monthly charge, or a campus decision is listed here instead.**
 
 Adopted because of that review: bucket versioning and lifecycle (S3.10, S3.13,
 S3.14), pool deletion protection (Cognito.6), X-Ray
-(Lambda.7, APIGateway.3), execution logging (APIGateway.1), packaged `boto3`.
+(Lambda.7, APIGateway.3), packaged `boto3`.
 Already passing: S3.2, S3.3, S3.5, S3.8, CloudFront.1, CloudFront.3, CloudFront.13,
 Cognito.3, Lambda.1, Lambda.2.
 
@@ -366,6 +371,7 @@ Accepted. Security Hub will flag these, and each is a decision for campus, not a
 | SecretsManager.1, .4 | Rotation | See section 4. |
 | **SecretsManager.3** | Secret used in the last 90 days | **It is only read when someone clicks Refresh, so it will be flagged as unused for most of the year. Do not delete it.** |
 | **Cognito.5** | MFA on the user pool | **Off for the first deploy, Kyle's call. Not meant to stay off. See section 7.** |
+| **APIGateway.1** | API execution logging | **Off for the first deploy, Kyle's call. Not meant to stay off. See section 8.** |
 | Cognito.1, Cognito.4 | Threat protection | See section 7. |
 | Lambda.3 | Functions in a VPC | See the VPC entry in section 5. |
 | APIGateway.2 | Client certificate for the backend | Both backends are AWS services called with IAM credentials; a client certificate is never presented. |

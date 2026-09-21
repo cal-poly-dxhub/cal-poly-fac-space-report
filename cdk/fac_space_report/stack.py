@@ -18,6 +18,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = lambda_.Runtime.PYTHON_3_13
 ARCHITECTURE = lambda_.Architecture.ARM_64
 
+# First-deploy switches. Both are off so a first deploy needs nothing set up in the
+# account beforehand. Turn both on before real users; each updates in place.
+REQUIRE_MFA = False  # False: sign-in is email and password only
+API_LOGGING = False  # True needs the account's API Gateway CloudWatch role, see cdk/README.md
+
 # Layout of the data bucket, shared by both Lambdas and the API.
 TABLES_PREFIX = "tables/"
 MARKER_KEY = "marker/complete.json"
@@ -195,12 +200,9 @@ class FacSpaceReportStack(Stack):
                 require_digits=True,
                 require_symbols=True,
             ),
-            # Off for the first deploy: sign-in is email and password only. To require
-            # an authenticator app, replace this line with the two below and redeploy.
-            # It updates the pool in place, and managed login walks users through setup.
-            #   mfa=cognito.Mfa.REQUIRED,
-            #   mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True),
-            mfa=cognito.Mfa.OFF,
+            # When on: authenticator app only, and managed login walks users through setup.
+            mfa=cognito.Mfa.REQUIRED if REQUIRE_MFA else cognito.Mfa.OFF,
+            mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True) if REQUIRE_MFA else None,
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
             feature_plan=cognito.FeaturePlan.ESSENTIALS,
             deletion_protection=True,
@@ -240,6 +242,33 @@ class FacSpaceReportStack(Stack):
             use_cognito_provided_values=True,
         )
 
+        # API Gateway's own logs: who called what (access log, with the signed-in email)
+        # and integration failures (execution log, errors only, payloads never logged).
+        # The two non-Lambda integrations below have no other logs.
+        api_logging = {}
+        if API_LOGGING:
+            api_logging = dict(
+                logging_level=apigw.MethodLoggingLevel.ERROR,
+                access_log_destination=apigw.LogGroupLogDestination(
+                    logs.LogGroup(
+                        self, "ApiAccessLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
+                    )
+                ),
+                access_log_format=apigw.AccessLogFormat.custom(
+                    json.dumps(
+                        {
+                            "requestTime": apigw.AccessLogField.context_request_time(),
+                            "requestId": apigw.AccessLogField.context_request_id(),
+                            "user": apigw.AccessLogField.context_authorizer_claims("email"),
+                            "ip": apigw.AccessLogField.context_identity_source_ip(),
+                            "method": apigw.AccessLogField.context_http_method(),
+                            "path": apigw.AccessLogField.context_resource_path(),
+                            "status": apigw.AccessLogField.context_status(),
+                        }
+                    )
+                ),
+            )
+
         # "API Gateway REST API". Every method requires a Cognito token; that is set
         # once as the default so a new method cannot be added open by mistake.
         cors_origin = {"method.response.header.Access-Control-Allow-Origin": f"'{site_url}'"}
@@ -264,27 +293,8 @@ class FacSpaceReportStack(Stack):
                 # One owner, and every Refresh is a full Planon pull.
                 throttling_rate_limit=5,
                 throttling_burst_limit=10,
-                # The two non-Lambda integrations below have no logs of their own.
-                logging_level=apigw.MethodLoggingLevel.ERROR,
                 tracing_enabled=True,
-                access_log_destination=apigw.LogGroupLogDestination(
-                    logs.LogGroup(
-                        self, "ApiAccessLogs", retention=logs.RetentionDays.THIRTEEN_MONTHS
-                    )
-                ),
-                access_log_format=apigw.AccessLogFormat.custom(
-                    json.dumps(
-                        {
-                            "requestTime": apigw.AccessLogField.context_request_time(),
-                            "requestId": apigw.AccessLogField.context_request_id(),
-                            "user": apigw.AccessLogField.context_authorizer_claims("email"),
-                            "ip": apigw.AccessLogField.context_identity_source_ip(),
-                            "method": apigw.AccessLogField.context_http_method(),
-                            "path": apigw.AccessLogField.context_resource_path(),
-                            "status": apigw.AccessLogField.context_status(),
-                        }
-                    )
-                ),
+                **api_logging,
             ),
         )
         # Without these, a rejected request (expired token, throttled) reaches the
