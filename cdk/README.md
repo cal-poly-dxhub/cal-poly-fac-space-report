@@ -15,6 +15,17 @@ first run downloads that image and takes a minute.
 `cdk synth` prints the CloudFormation template and writes it to `cdk.out/`. It
 does not touch AWS and needs no credentials.
 
+## Deploying
+
+With AWS credentials for the target account in your shell, and Docker running:
+
+    cdk bootstrap     # once per account and region, before the first deploy
+    cdk deploy
+
+The stack goes to whatever account and region those credentials default to. The
+first deploy takes around ten minutes, most of it CloudFront. Skipping `bootstrap`
+fails the deploy with a message about a missing toolkit stack or SSM parameter.
+
 ## After the first deploy
 
 `cdk deploy` ends by printing its outputs. Three of them are complete commands with

@@ -34,6 +34,9 @@ in the order the pieces were built.
   CloudFormation copies stack tags to every resource that supports them.
 - **`cdk/README.md` with the four setup commands.** Whoever inherits this should
   be able to synth without reading CDK docs first.
+- **`cdk/README.md` names `cdk bootstrap` as a one-time step.** The Lambda zips and
+  the page are assets, so CDK needs its toolkit stack in the account first. Left
+  out at first because the target was synth; it would have failed the first deploy.
 - **`cdk/.gitignore` rather than editing the root one.** Keeps the CDK app
   self-contained. Ignores `cdk.out/` and the venv.
 
