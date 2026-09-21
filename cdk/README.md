@@ -97,7 +97,7 @@ one-hour session lasts. Every API call sends the ID token in `Authorization`.
 | Call | Does | Answers |
 | --- | --- | --- |
 | `POST /refresh` | starts a pull | `202 {"started": true}` at once |
-| `GET /refresh` | the poll | `{"finished_at": null}` while a pull is running, then the marker. A good pull: `{"status": "complete", "finished_at": "...", "rows": {...}}`. A failed one: `{"status": "failed", "finished_at": "...", "error": "..."}` |
+| `GET /refresh` | the poll | `202 {"finished_at": null}` while there is no marker, then `200` with the marker. A good pull: `{"status": "complete", "finished_at": "...", "rows": {...}}`. A failed one: `{"status": "failed", "finished_at": "...", "error": "..."}` |
 | `GET /generate?ref_date=YYYY-MM-DD` | builds the report | `200` with `report.csv` as the body, `400` for a bad date, `409` if nothing has been pulled yet |
 
 `POST /refresh` deletes the old marker before it does anything else, so any marker

@@ -324,8 +324,8 @@ class FacSpaceReportStack(Stack):
 
         # Step 4, the poll. The diagram has the browser read the marker from S3, but
         # the browser holds a Cognito token, not AWS credentials, and the bucket stays
-        # private. So the read goes through the API: GET returns the marker object, or
-        # {"finished_at": null} while there is none.
+        # private. So the read goes through the API: GET returns 200 with the marker
+        # object, or 202 with {"finished_at": null} while there is none.
         marker_reader = iam.Role(
             self,
             "MarkerReaderRole",
@@ -345,8 +345,10 @@ class FacSpaceReportStack(Stack):
                     credentials_role=marker_reader,
                     integration_responses=[
                         apigw.IntegrationResponse(status_code="200", response_parameters=cors_origin),
+                        # API Gateway keeps one mapping per status code, so "no marker yet"
+                        # cannot also be 200. A second 200 silently replaces the first.
                         apigw.IntegrationResponse(
-                            status_code="200",
+                            status_code="202",
                             selection_pattern="404",
                             response_parameters=cors_origin,
                             response_templates={"application/json": '{"finished_at": null}'},
@@ -363,7 +365,7 @@ class FacSpaceReportStack(Stack):
             ),
             method_responses=[
                 apigw.MethodResponse(status_code=code, response_parameters={k: True for k in cors_origin})
-                for code in ("200", "502")
+                for code in ("200", "202", "502")
             ],
         )
 

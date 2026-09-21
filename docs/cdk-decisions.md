@@ -301,9 +301,16 @@ in the order the pieces were built.
   diagram's step 4 arrows were redrawn that way on 2026-09-21.
 - **That `GET` is a direct S3 integration with its own role, not a third Lambda.**
   The role reads the marker key and nothing else. A missing marker comes back as
-  `200 {"finished_at": null}` rather than 404, so a normal poll does not fill the
+  `202 {"finished_at": null}` rather than 404, so a normal poll does not fill the
   browser console with errors. Any other S3 error maps to 502; unmapped, API
-  Gateway would hand it back as a 200. Not exercised: needs a deploy.
+  Gateway would hand it back as a 200.
+- **Why 202 and not 200: found on the first real deploy, 2026-09-21.** The first
+  version mapped "no marker" to 200 as well. API Gateway keeps one integration
+  response per status code, so that second 200 silently replaced the default one.
+  Polling worked only while there was no marker; as soon as a pull wrote one,
+  nothing matched and API Gateway answered 500 ("Lost track of the refresh.
+  Internal server error" on the page). Synth and the validation rules cannot see
+  this, and the stand-in backend did not model it. It does now.
 - **Cognito authorizer set once as the default for every method.** A method added
   later is protected unless someone opts it out. Only the CORS `OPTIONS` methods
   are open, which browsers require.
