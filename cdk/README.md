@@ -62,7 +62,16 @@ call sends the ID token in the `Authorization` header.
 | Call | Does | Answers |
 | --- | --- | --- |
 | `POST /refresh` | starts a pull | `202 {"started": true}` at once |
-| `GET /refresh` | the poll | `{"finished_at": null}` until the pull is done, then the marker: `{"finished_at": "...", "rows": {...}}` |
+| `GET /refresh` | the poll | `{"finished_at": null}` while a pull is running, then the marker. A good pull: `{"status": "complete", "finished_at": "...", "rows": {...}}`. A failed one: `{"status": "failed", "finished_at": "...", "error": "..."}` |
 | `GET /generate?ref_date=YYYY-MM-DD` | builds the report | `200` with `report.csv` as the body, `400` for a bad date, `409` if nothing has been pulled yet |
 
-To tell a new pull from the last one, compare `finished_at` with when Refresh was clicked.
+`POST /refresh` deletes the old marker before it does anything else, so any marker
+the poll sees belongs to the pull just started.
+
+Three things the stack cannot enforce, all from AWS's Cognito guidance:
+
+- Cognito treats PKCE as optional, so the page has to send it. `S256` is the only
+  method Cognito accepts, with a fresh verifier for every sign-in.
+- Keep tokens in memory. AWS: "Don't store ID and access tokens in local storage."
+- The sign-in session on Cognito's side lasts one hour and token refresh does not
+  extend it, so expect to send the owner back through sign-in after that.
