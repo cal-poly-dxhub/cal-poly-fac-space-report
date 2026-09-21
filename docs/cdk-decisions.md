@@ -294,3 +294,34 @@ in the order the pieces were built.
   diagram. Cognito is the access control.
 - **`cdk/README.md` documents the three calls.** The page is not written yet, and
   the response shapes are choices made here.
+
+## Standards applied, and findings accepted
+
+Kyle's rule for this stack is to follow AWS standards. After building, every
+resource was checked against AWS's own published controls (the Security Hub control
+reference, read 2026-09-21). The line drawn: **a standard that is a setting on a
+resource the diagram already has was adopted; one that needs a new component, a
+monthly charge, or a campus decision is listed here instead.**
+
+Adopted because of that review: bucket versioning and lifecycle (S3.10, S3.13,
+S3.14), required MFA (Cognito.5), pool deletion protection (Cognito.6), X-Ray
+(Lambda.7, APIGateway.3), execution logging (APIGateway.1), packaged `boto3`.
+Already passing: S3.2, S3.3, S3.5, S3.8, CloudFront.1, CloudFront.3, CloudFront.13,
+Cognito.3, Lambda.1, Lambda.2.
+
+Accepted. Security Hub will flag these, and each is a decision for campus, not a bug:
+
+| Control | What it wants | Why not here |
+| --- | --- | --- |
+| CloudFront.6, APIGateway.4 | WAF web ACLs | New components, roughly $5 a month each plus rules. The API already needs a sign-in on every call and is throttled. The first thing to add if campus security asks. |
+| CloudFront.7, CloudFront.8 | Custom certificate, SNI | Needs a campus domain name. Until then CloudFront pins the default certificate to its `TLSv1` policy (AWS docs), so the minimum TLS version cannot be raised. With a domain, use `TLSv1.2_2021` or newer. |
+| CloudFront.5, S3.9 | CloudFront and S3 access logs | Needs a log bucket. CloudFront.5 only accepts legacy logging, which needs ACLs on that bucket, which S3.12 then flags. The API access log already records who did what. |
+| CloudFront.4, S3.7 | Origin failover, cross-region replication | A second region for a once-a-year report. |
+| CloudFront.17 | Signed URLs or cookies | The page is a public shell with no data in it. All data is behind the API. |
+| S3.17 | KMS keys on buckets | See section 3. |
+| S3.11, S3.15 | Event notifications, Object Lock | Nothing would consume the events. Object Lock stops a pull from replacing the tables. |
+| SecretsManager.1, .4 | Rotation | See section 4. |
+| **SecretsManager.3** | Secret used in the last 90 days | **It is only read when someone clicks Refresh, so it will be flagged as unused for most of the year. Do not delete it.** |
+| Cognito.1, Cognito.4 | Threat protection | See section 7. |
+| Lambda.3 | Functions in a VPC | See the VPC entry in section 5. |
+| APIGateway.2 | Client certificate for the backend | Both backends are AWS services called with IAM credentials; a client certificate is never presented. |
