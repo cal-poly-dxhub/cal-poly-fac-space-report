@@ -42,7 +42,7 @@ No center filter. A blank CSU center must not exclude a property.
 
 ## Business names
 
-Kristeen's names for the slots, from the requirements doc.
+Names for the slots, from the requirements doc.
 
 | Slot | Called |
 | --- | --- |
