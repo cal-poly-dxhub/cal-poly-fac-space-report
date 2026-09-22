@@ -1,0 +1,10 @@
+# Deployment settings, read by the CDK app at synth. Change one and run
+# `cdk deploy` again; each updates the stack in place. See docs/install.md.
+
+# Sign-in also asks for a code from an authenticator app. Cognito's login
+# page walks each user through setting one up the first time.
+require_mfa: false
+
+# API Gateway access log (who called what, with their email) and error log.
+# Needs the account's API Gateway CloudWatch role first, see docs/install.md.
+api_logging: false

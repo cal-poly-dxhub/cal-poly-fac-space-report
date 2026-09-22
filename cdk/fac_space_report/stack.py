@@ -19,11 +19,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = lambda_.Runtime.PYTHON_3_13
 ARCHITECTURE = lambda_.Architecture.ARM_64
 
-# First-deploy switches. Both are off so a first deploy needs nothing set up in the
-# account beforehand. Turn both on before real users; each updates in place.
-REQUIRE_MFA = False  # False: sign-in is email and password only
-API_LOGGING = False  # True needs the account's API Gateway CloudWatch role, see docs/install.md
-
 # Layout of the data bucket, shared by both Lambdas and the API.
 TABLES_PREFIX = "tables/"
 MARKER_KEY = "marker/complete.json"
@@ -61,9 +56,21 @@ def bundle(function: str, reused_module: str) -> lambda_.Code:
 
 
 class FacSpaceReportStack(Stack):
-    """Everything inside the "AWS account" box of docs/aws-deployment.drawio."""
+    """Everything inside the "AWS account" box of docs/aws-deployment.drawio.
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    require_mfa and api_logging come from config.yaml. Both default off so a first
+    deploy needs nothing set up in the account beforehand.
+    """
+
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        *,
+        require_mfa: bool = False,
+        api_logging: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # "S3 static site". The bucket is private; CloudFront is the only way in.
@@ -189,8 +196,8 @@ class FacSpaceReportStack(Stack):
                 require_symbols=True,
             ),
             # When on: authenticator app only, and managed login walks users through setup.
-            mfa=cognito.Mfa.REQUIRED if REQUIRE_MFA else cognito.Mfa.OFF,
-            mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True) if REQUIRE_MFA else None,
+            mfa=cognito.Mfa.REQUIRED if require_mfa else cognito.Mfa.OFF,
+            mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True) if require_mfa else None,
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
             feature_plan=cognito.FeaturePlan.ESSENTIALS,
             deletion_protection=True,
@@ -233,9 +240,10 @@ class FacSpaceReportStack(Stack):
         # API Gateway's own logs: who called what (access log, with the signed-in email)
         # and integration failures (execution log, errors only, payloads never logged).
         # The two non-Lambda integrations below have no other logs.
-        api_logging = {}
-        if API_LOGGING:
-            api_logging = dict(
+        # Needs the account's API Gateway CloudWatch role, see docs/install.md.
+        logging_options = {}
+        if api_logging:
+            logging_options = dict(
                 logging_level=apigw.MethodLoggingLevel.ERROR,
                 access_log_destination=apigw.LogGroupLogDestination(
                     logs.LogGroup(
@@ -281,7 +289,7 @@ class FacSpaceReportStack(Stack):
                 # One owner, and every Refresh is a full Planon pull.
                 throttling_rate_limit=5,
                 throttling_burst_limit=10,
-                **api_logging,
+                **logging_options,
             ),
         )
         # Without these, a rejected request (expired token, throttled) reaches the

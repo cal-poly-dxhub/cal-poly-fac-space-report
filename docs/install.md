@@ -14,35 +14,22 @@ services above works.
 
 ## 2. Settings
 
-Two switches at the top of `cdk/fac_space_report/stack.py`. Both start off so a first deploy
-needs nothing set up in the account beforehand. Turn both on before real users; each updates in
-place with another `cdk deploy`.
+Two switches in `config.yaml` at the repo root. Both start off so a first deploy needs nothing
+set up in the account beforehand. Each updates in place with another `cdk deploy`.
 
-**`REQUIRE_MFA`** - sign-in also asks for a code from an authenticator app. Cognito's login
-page walks each user through setting one up the first time.
+- **`require_mfa`** - sign-in also asks for a code from an authenticator app. Cognito's login
+  page walks each user through setting one up the first time.
 
-**`API_LOGGING`** - API Gateway logs who called what, with the signed-in email, plus any
-integration errors. API Gateway can only write logs through a role set once per account and
-region. Check whether yours already has one:
+- **`api_logging`** - API Gateway logs who called what, with the signed-in email, plus any
+  integration errors. API Gateway can only write logs through a role set once per account and
+  region. Check whether yours already has one:
 
-```bash
-aws apigateway get-account --query cloudwatchRoleArn
-```
+  ```bash
+  aws apigateway get-account --query cloudwatchRoleArn
+  ```
 
-If that prints an ARN, turn the switch on and deploy. If it prints `null`, create the role
-first, or the deploy fails:
-
-```bash
-aws iam create-role --role-name APIGatewayCloudWatchLogs \
-  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"apigateway.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
-aws iam attach-role-policy --role-name APIGatewayCloudWatchLogs \
-  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
-aws apigateway update-account \
-  --patch-operations op=replace,path=/cloudwatchRoleArn,value=arn:aws:iam::ACCOUNT_ID:role/APIGatewayCloudWatchLogs
-```
-
-That role is shared by every API in the account and region, so it lives outside this stack and
-`cdk destroy` leaves it alone.
+  An ARN means you're set. `null` means the deploy will fail until someone sets that role up,
+  following [AWS's instructions](https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-logging.html#set-up-access-logging-permissions).
 
 ## 3. Deploy
 
@@ -55,10 +42,6 @@ python -m pip install -r requirements.txt
 cdk bootstrap   # once per account and region
 cdk deploy
 ```
-
-Use the venv in `cdk/`. With a different one active, `cdk deploy` fails with
-`ModuleNotFoundError: No module named 'aws_cdk'`. Skipping `bootstrap` fails with a message
-about a missing toolkit stack or SSM parameter.
 
 The first deploy takes around ten minutes, most of it CloudFront.
 
@@ -119,7 +102,7 @@ Some things are kept on purpose, so a mistaken destroy loses nothing that matter
 
 - both S3 buckets (the page, and the last copy of the Planon tables)
 - the Cognito user pool, which also has deletion protection on
-- the three log groups (four with `API_LOGGING` on)
+- the three log groups (four with `api_logging` on)
 
 A later deploy does not reuse them; it makes new ones. To find what an old install left
 behind, everything the stack made carries the tag `Project=fac-space-report`:

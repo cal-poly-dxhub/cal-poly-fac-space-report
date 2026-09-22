@@ -18,8 +18,7 @@
 
 A rebuild of Cal Poly's annual CSU facility report, the CSV the campus sends the Chancellor's
 Office each year. Planon produced it through its Data Aggregation Manager, which retires in
-December 2026. This produces the same report from Planon's data, outside Planon. Built with Cal
-Poly DxHub.
+December 2026. This produces the same report from Planon's data, outside Planon.
 
 It is for the facilities staff who own the report. They sign in to one page with two buttons:
 **Refresh** copies the current data out of Planon, and **Generate** builds the report for a
@@ -47,21 +46,19 @@ the rules for every column are written down in
 - `cdk/` - the CDK app (`fac_space_report/stack.py`), the two Lambda handlers (`functions/`) and the page (`site/`)
 - `pipeline/` - the report logic (`build_report.py`) and a script that diffs our output against Planon's (`compare.py`). The build Lambda runs `build_report.py` unchanged
 - `connector/` - the Planon OData client. The pull Lambda runs it unchanged
+- `config.yaml` - the deployment settings
 - `docs/` - the [install guide](docs/install.md), the architecture diagram and the column reference
-
-No Cal Poly facility data is committed. The repo holds code and documentation only.
 
 ## Architecture
 
 ![Architecture diagram](docs/architecture.png)
 
-The numbers are the order things happen. The editable source is
+The editable source is
 [`docs/aws-deployment.drawio`](docs/aws-deployment.drawio).
 
 ## Deployment
 
-**[`docs/install.md`](docs/install.md) is the install guide**: prerequisites, `cdk deploy`,
-the three commands to run from its output, and how to tear it down. Read it before you deploy.
+**[`docs/install.md`](docs/install.md) is the install guide**: Read it before you deploy.
 
 **Prerequisites:** AWS credentials, Python 3.10+, Node.js 20+, the CDK CLI, Docker running, and a
 bootstrapped account/region.
@@ -79,33 +76,25 @@ cdk deploy
 ```
 
 `cdk deploy` provisions everything in the diagram and prints the page's URL, plus
-ready-to-paste commands that store the Planon login and create a sign-in. CloudFront makes the
-first deploy take around ten minutes. Tear down with `cdk destroy`, and see
-[the install guide](docs/install.md#6-tearing-down) for what it leaves behind.
+ready-to-paste commands that store the Planon login and create a sign-in. Tear down with `cdk destroy`.
 
 ## Configuration Reference
 
-There is no config file. The settings are constants in the CDK code, read at synth. All three
-can be changed and redeployed; each updates in place.
+Changeable settings in [`config.yaml`](config.yaml) at the repo root.
+Change a value and run `cdk deploy` again.
 
-- **`REQUIRE_MFA`** (top of `cdk/fac_space_report/stack.py`, default `False`) - when `True`,
-  sign-in requires an authenticator app, and Cognito walks each user through setting one up
-- **`API_LOGGING`** (same place, default `False`) - when `True`, API Gateway writes an access
-  log (who called what, with their email) and an error log. It needs a one-time account
-  setting first, see [the install guide](docs/install.md#2-settings)
-- **`env=`** (in `cdk/app.py`, unset) - pins the stack to one account and region. Unset, it
-  goes wherever your credentials point
-
-Both switches start off so a first deploy needs nothing set up in the account beforehand. Turn
-both on before real users.
+- **`require_mfa`** (default `false`) - sign-in also asks for a code from an authenticator app,
+  and Cognito walks each user through setting one up
+- **`api_logging`** (default `false`) - API Gateway writes an access log (who called what, with
+  their email) and an error log. Needs a one-time account setting first, see
+  [the install guide](docs/install.md#2-settings)
 
 ## Usage
 
 **Running the report.** Open the page, sign in, and click **Refresh from Planon**. A refresh
-replaces all five tables and takes a few minutes; the page shows the row counts when it
+replaces all five tables and shows the row counts when it
 finishes. Then pick a reference date and click **Generate report**. The report shows on the
-page, and **Download CSV** saves it. Refresh again whenever you need newer data; Generate
-always uses the last refresh.
+page, and **Download CSV** saves it. Refresh again whenever you need newer data.
 
 **How the report is built.** Five Planon tables: `Property`, `PropertyDetails`, `SpaceUsage`,
 `SpaceStandard` and `BaseCodes`. A report row is a **facility**, a group of buildings sharing
