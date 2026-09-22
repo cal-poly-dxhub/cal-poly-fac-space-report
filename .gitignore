@@ -8,7 +8,7 @@ __pycache__/
 !.env.example
 
 # Cal Poly facility data. None of this belongs in the repo: pull it yourself
-# with Planon credentials. See "Getting set up" in README.md.
+# with Planon credentials. See pipeline/README.md.
 source_data/
 reference documents/
 *.csv

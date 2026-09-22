@@ -22,7 +22,7 @@ ARCHITECTURE = lambda_.Architecture.ARM_64
 # First-deploy switches. Both are off so a first deploy needs nothing set up in the
 # account beforehand. Turn both on before real users; each updates in place.
 REQUIRE_MFA = False  # False: sign-in is email and password only
-API_LOGGING = False  # True needs the account's API Gateway CloudWatch role, see cdk/README.md
+API_LOGGING = False  # True needs the account's API Gateway CloudWatch role, see docs/install.md
 
 # Layout of the data bucket, shared by both Lambdas and the API.
 TABLES_PREFIX = "tables/"

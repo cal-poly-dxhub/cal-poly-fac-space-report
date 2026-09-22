@@ -2,8 +2,7 @@
 """Build the CO Facility Report CSV from Planon data.
 
 Reimplements the aggregation that Planon's DAM module performed, following the
-paths documented in ../report-column-paths.md and the step order in
-../report-algorithm.md.
+paths documented in ../docs/report-column-paths.md.
 
     python3 build_report.py --ref-date 2026-09-10
 
