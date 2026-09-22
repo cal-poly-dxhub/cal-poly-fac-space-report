@@ -47,29 +47,37 @@ The first deploy takes around ten minutes, most of it CloudFront.
 
 ## 4. From the outputs
 
-`cdk deploy` ends by printing its outputs. Three of them are complete commands with the region,
-pool id and secret already filled in. Paste each one and replace only the words in capitals.
+`cdk deploy` ends by printing its outputs. Two of them are complete commands with the region,
+pool id and secret already filled in. Paste each one, filling in the placeholders named below.
 They are also on the stack's **Outputs** tab in the CloudFormation console.
 
 ### `PlanonPutLogin`
 
 *Stores the Planon login the pull uses.*
 
-Replace `PLANON_USER` and `PLANON_PASSWORD`. The deploy creates the secret with a placeholder,
-so until you run this every Refresh fails. The login never appears in the repo or the template.
+First create `planon.json` in the folder you run it from:
 
-### `LoginStep1CreateUser`, then `LoginStep2SetPassword`
+```json
+{"username": "REPLACE_WITH_PLANON_USERNAME", "password": "REPLACE_WITH_PLANON_PASSWORD"}
+```
+
+Run the command, then delete `planon.json`. The deploy creates the secret with a placeholder,
+so until you run this every Refresh fails. The login never appears in the repo, the template
+or your shell history.
+
+### `LoginCreateUser`
 
 *Gives someone a sign-in.*
 
-Replace `EMAIL` (both places in step 1) and `PASSWORD`. The account works at once: no emailed
-temporary password, no forced change. Passwords need 12 characters with upper case, lower case,
-a digit and a symbol. Nobody can sign themselves up, so this is the only way in.
+Replace `REPLACE_WITH_EMAIL` (both places). Cognito emails them a temporary password, and they choose their
+own at first sign-in. Passwords need 12 characters with upper case, lower case, a digit and a
+symbol. Nobody can sign themselves up, so this is the only way in. The temporary password
+lasts 7 days; to send a new one, run the command again with `--message-action RESEND`.
 
-Another person is the same two commands with another address. To remove one:
+Another person is the same command with another address. To remove one:
 
 ```bash
-aws cognito-idp admin-delete-user --user-pool-id USER_POOL_ID --username EMAIL
+aws cognito-idp admin-delete-user --user-pool-id USER_POOL_ID --username REPLACE_WITH_EMAIL
 ```
 
 `USER_POOL_ID` is the `UserPoolId` output.

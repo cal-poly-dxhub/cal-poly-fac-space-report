@@ -6,6 +6,7 @@ __pycache__/
 # credentials
 .env
 !.env.example
+planon.json
 
 # Cal Poly facility data. None of this belongs in the repo: pull it yourself
 # with Planon credentials. See pipeline/README.md.

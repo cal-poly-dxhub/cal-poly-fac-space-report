@@ -194,11 +194,25 @@ class FacSpaceReportStack(Stack):
                 require_uppercase=True,
                 require_digits=True,
                 require_symbols=True,
+                # The invitation email below states this.
+                temp_password_validity=Duration.days(7),
             ),
             # When on: authenticator app only, and managed login walks users through setup.
             mfa=cognito.Mfa.REQUIRED if require_mfa else cognito.Mfa.OFF,
             mfa_second_factor=cognito.MfaSecondFactor(sms=False, otp=True) if require_mfa else None,
             account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
+            # Sent when an admin creates an account. The password in it is temporary:
+            # managed login makes the user replace it at first sign-in, so the admin
+            # never knows the password that stays. Cognito requires both placeholders.
+            user_invitation=cognito.UserInvitationConfig(
+                email_subject="Your sign-in for the facility space report",
+                email_body=(
+                    f"You have been given a sign-in for the facility space report at {site_url}<br><br>"
+                    "Email: {username}<br>Temporary password: {####}<br><br>"
+                    "You will be asked to choose your own password when you first sign in. "
+                    "The temporary password expires in 7 days."
+                ),
+            ),
             feature_plan=cognito.FeaturePlan.ESSENTIALS,
             deletion_protection=True,
         )
@@ -413,27 +427,26 @@ class FacSpaceReportStack(Stack):
         CfnOutput(self, "PlanonSecretName", value=planon_secret.secret_name)
         CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
 
-        # The two one-time jobs after a first deploy, printed ready to paste. Only the
-        # words in capitals need replacing. No secret is ever in the template.
-        cognito_cli = f"aws cognito-idp --region {Aws.REGION}"
-        pool_and_user = f"--user-pool-id {user_pool.user_pool_id} --username EMAIL"
+        # The two one-time jobs after a first deploy, printed ready to paste. No password
+        # is ever typed into either command, so none ends up in shell history, and no
+        # secret is in the template. The default delivery medium is SMS, hence the
+        # literal EMAIL, which is not a placeholder.
         CfnOutput(
             self,
-            "LoginStep1CreateUser",
-            value=f"{cognito_cli} admin-create-user {pool_and_user} --message-action SUPPRESS"
-            " --user-attributes Name=email,Value=EMAIL Name=email_verified,Value=true",
+            "LoginCreateUser",
+            value=f"aws cognito-idp --region {Aws.REGION} admin-create-user"
+            f" --user-pool-id {user_pool.user_pool_id} --username REPLACE_WITH_EMAIL"
+            " --user-attributes Name=email,Value=REPLACE_WITH_EMAIL Name=email_verified,Value=true"
+            " --desired-delivery-mediums EMAIL",
         )
-        CfnOutput(
-            self,
-            "LoginStep2SetPassword",
-            value=f"{cognito_cli} admin-set-user-password {pool_and_user} --password 'PASSWORD' --permanent",
-        )
+        # The login is read from a file, planon.json, which the install guide says to
+        # delete afterwards. Inline, it would sit in ~/.zsh_history in plain text.
         CfnOutput(
             self,
             "PlanonPutLogin",
             value=f"aws secretsmanager --region {Aws.REGION} put-secret-value"
             f" --secret-id {planon_secret.secret_arn}"
-            """ --secret-string '{"username": "PLANON_USER", "password": "PLANON_PASSWORD"}'""",
+            " --secret-string file://planon.json",
         )
         CfnOutput(self, "SiteClientId", value=site_client.user_pool_client_id)
         CfnOutput(self, "LoginUrl", value=login_domain.base_url())
