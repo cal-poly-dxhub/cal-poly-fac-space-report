@@ -9,14 +9,13 @@ Aggregation Manager before it retires in December 2026.
 | --- | --- |
 | `report-column-paths.md` | Where each report column comes from |
 | `docs/aws-deployment.drawio` | Proposed AWS deployment diagram. Design only, nothing is deployed yet. |
-| `cdk/` | CDK app (Python) that builds that deployment, including the two-button page in `cdk/site/`. It synthesizes; nothing is deployed yet. Start with `cdk/README.md`. |
-| `docs/cdk-decisions.md` | Every choice in the CDK app that the diagram did not make, and why. Includes the two places where building it changed the diagram. |
+| `cdk/` | CDK app that builds that deployment, including the two-button page in `cdk/site/`. Start with `cdk/README.md`. |
 | `pipeline/` | The pipeline, plus a script that diffs our output against Planon's |
 | `connector/` | OData client for pulling Planon tables |
 | `source_data/` | (When pulled) Local mirror of the five source tables. Create locally using script below. |
 | `planon-reference.csv` | (When added) Planon's own output. Not in the repo, add manually in order to run compare.py. |
 
-## Getting set up
+## Getting set up (Local script, see cdk/README to set up AWS deployment)
 
 No Cal Poly facility data is committed. The repo holds code and
 documentation only; below is instructions to get started.
