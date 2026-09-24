@@ -175,10 +175,13 @@ class FacSpaceReportStack(Stack):
             environment={
                 "DATA_BUCKET": data_bucket.bucket_name,
                 "TABLES_PREFIX": TABLES_PREFIX,
+                "MARKER_KEY": MARKER_KEY,
                 "SITE_ORIGIN": site_url,
             },
         )
         data_bucket.grant_read(build_fn, f"{TABLES_PREFIX}*")
+        # Generate refuses tables from a refresh that is running or failed.
+        data_bucket.grant_read(build_fn, MARKER_KEY)
 
         # "Cognito user pool (standalone)": its own user directory, no campus SSO.
         # Nobody can sign themselves up; an admin creates the owner's account.

@@ -421,6 +421,8 @@ async function generate() {
   if (!response.ok) {
     showReportFailure(await explain(response));
     setBusy(false);
+    // 409: the data changed under this page, e.g. a refresh started in another tab.
+    if (response.status === 409) loadLastRefresh();
     return;
   }
   const text = await response.text();

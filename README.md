@@ -36,7 +36,7 @@ the rules for every column are written down in
 - **Sign-in:** a standalone Amazon Cognito user pool with Cognito's managed login pages. No self sign-up; an admin creates each account
 - **API:** API Gateway REST API. Every endpoint requires a Cognito token
 - **Pull:** a Python Lambda, started asynchronously by Refresh, that copies five tables from Planon's OData endpoint into an S3 data bucket and writes a completion marker the page polls for
-- **Build:** a Python Lambda, called synchronously by Generate, that builds the report from those tables and returns it as `report.csv`
+- **Build:** a Python Lambda, called synchronously by Generate, that builds the report from those tables and returns it as `report.csv`. It refuses while a refresh is running or after one failed, so the tables never come from two different pulls
 - **Secrets:** the Planon login is kept in AWS Secrets Manager, entered after deploy and never in the repo or the template
 - **External dependency:** Planon's OData endpoint (`planon.calpoly.edu`) is the only thing outside AWS
 - **Infrastructure:** AWS CDK (Python)
