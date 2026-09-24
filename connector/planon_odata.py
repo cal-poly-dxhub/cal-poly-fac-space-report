@@ -30,7 +30,6 @@ from typing import Any, Iterator
 import requests
 
 DEFAULT_BASE_URL = "https://planon.calpoly.edu/datalake/odata"
-PAGE_SIZE = 1000
 TIMEOUT = 60
 
 
@@ -91,7 +90,6 @@ class PlanonODataClient:
         filter_: str | None = None,
         orderby: str | None = None,
         top: int | None = None,
-        page_size: int = PAGE_SIZE,
     ) -> Iterator[dict[str, Any]]:
         """Yield rows from ``entity_set``, following server-side paging.
 
@@ -194,9 +192,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--top", type=int, help="Max total rows to fetch (omit for the whole table)"
     )
     parser.add_argument(
-        "--page-size", type=int, default=PAGE_SIZE, help="Rows per request"
-    )
-    parser.add_argument(
         "--format",
         choices=["json", "ndjson", "csv"],
         default="json",
@@ -245,7 +240,6 @@ def main(argv: list[str] | None = None) -> int:
                 filter_=args.filter_,
                 orderby=args.orderby,
                 top=args.top,
-                page_size=args.page_size,
             )
         )
     except PlanonODataError as error:
