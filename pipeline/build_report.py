@@ -28,20 +28,20 @@ ROOT = os.path.dirname(HERE)
 
 # Tables the report needs. Space is deliberately absent: SpaceUsage carries its
 # own PropertyRef, which agrees with Space.PropertyRef on every row.
-TABLES = ["Property", "PropertyDetails", "SpaceUsage", "SpaceStandard", "BaseCodes"]
+TABLES = ["Property", "PropertyDetails", "SpaceUsage", "BaseCodes"]
 
 # All six CSU centers. Confirmed by the stakeholder: include every one, and do
 # not drop properties whose center is blank.
 CSU_CENTERS = ["00", "01", "02", "03", "SC-00", "SC-01"]
 
-# Planon's own export header. Area 14 and Area 15 are the DAD slot names it
-# uses for GSF and ASF; keeping them means the two files diff cleanly.
+# Planon's own export header, except that Planon prints GSF and ASF under their
+# DAD slot names, Area 14 and Area 15. The stakeholder asked for the real names.
 COLUMNS = [
     "NUM", "SFX", "FAC NAME",
     "CATEGORY CODE", "CATEGORY DESC",
     "STATUS CODE", "STATUS DESC",
     "OWNER CODE", "OWNER DESC",
-    "Area 14", "Area 15", "EFFC", "COMPL DATE",
+    "GSF", "ASF", "EFFC", "COMPL DATE",
 ]
 
 
@@ -156,7 +156,6 @@ class Report:
         self.property = {r["Syscode"]: r for r in self.source.table("Property")}
         self.details = self.source.table("PropertyDetails")
         self.usage = self.source.table("SpaceUsage")
-        self.standard = {r["Syscode"]: r for r in self.source.table("SpaceStandard")}
         self.codes = {r["Syscode"]: r for r in self.source.table("BaseCodes")}
 
     # Step 2
@@ -220,28 +219,19 @@ class Report:
 
     # Step 6
     def assignable(self) -> dict[str, float]:
-        """PropertyRef -> assignable square feet, nonassignable space excluded."""
+        """PropertyRef -> assignable square feet, from spaces with a CSU space code."""
         totals: dict[str, float] = defaultdict(float)
         for row in self.usage:
             if not effective(row, self.ref_date):
                 continue
-            standard = self.standard.get(row.get("SpaceStandardRef") or "")
-            if standard is None:
-                if row.get("SpaceStandardRef"):
-                    self.note(
-                        f"SpaceStandardRef {row['SpaceStandardRef']} "
-                        f"not found in SpaceStandard"
-                    )
+            # FreeString1 is the CSU space code (SpCd). The stakeholder's revised
+            # definition counts a space when it is populated, which replaced the
+            # old SpaceStandard '000' Nonassignable test.
+            spcd = row.get("FreeString1")
+            if not spcd:
                 continue
-            if standard.get("Code") == "000":
-                continue
-            # Both the space standard and its parent must be present and not
-            # '000'. A missing parent excludes the record, per the migration
-            # requirements. No numeric effect on current data (every standard in
-            # use has a parent) but it is the agreed rule.
-            parent = self.standard.get(standard.get("ParentRef") or "")
-            if parent is None or parent.get("Code") == "000":
-                continue
+            # Only to report a dangling code; the space still counts.
+            self.resolve(spcd, "SPACE_SPCD")
             totals[row.get("PropertyRef") or ""] += num(row.get("FloorArea"))
         return totals
 
@@ -319,7 +309,7 @@ class Report:
 # ---------------------------------------------------------------------- output
 
 def fmt_effc(gsf, asf) -> str:
-    """Area 15 divided by Area 14, blank if either is blank or zero.
+    """ASF divided by GSF, blank if either is blank or zero.
 
     This follows the migration requirements rather than Planon, which prints a
     literal "0" for the roughly 70 facilities that have gross area but no
@@ -341,7 +331,7 @@ def write_csv(rows: list[dict], path: str, ref_date: str) -> None:
 
     One section per CSU center, introduced by a "<date> : <code> - <name>" row
     with the center columns folded into it, each section closed by a subtotal
-    carrying only Area 14 and Area 15, and a grand total on the final line.
+    carrying only GSF and ASF, and a grand total on the final line.
     Trailing comma on every row and CRLF endings, both as Planon emits them.
     """
     blank = [""] * len(COLUMNS)

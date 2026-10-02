@@ -1,4 +1,4 @@
-"""pull Lambda: copy the five Planon tables into the data bucket (diagram step 3).
+"""pull Lambda: copy the four Planon tables into the data bucket (diagram step 3).
 
 Bundled next to connector/planon_odata.py, which does the OData work.
 """
@@ -11,7 +11,7 @@ import boto3
 
 from planon_odata import PlanonODataClient, render
 
-TABLES = ["Property", "PropertyDetails", "SpaceUsage", "SpaceStandard", "BaseCodes"]
+TABLES = ["Property", "PropertyDetails", "SpaceUsage", "BaseCodes"]
 
 s3 = boto3.client("s3")
 secrets = boto3.client("secretsmanager")

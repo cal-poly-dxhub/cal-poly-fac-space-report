@@ -24,7 +24,7 @@ It is for the facilities staff who own the report. They sign in to one page with
 **Refresh** copies the current data out of Planon, and **Generate** builds the report for a
 reference date and downloads it as a CSV.
 
-No Planon-side logic is carried over. The report is rebuilt from five raw Planon tables, and
+No Planon-side logic is carried over. The report is rebuilt from four raw Planon tables, and
 the rules for every column are written down in
 [`docs/report-column-paths.md`](docs/report-column-paths.md).
 
@@ -35,7 +35,7 @@ the rules for every column are written down in
 - **Page:** a static, dependency-free HTML/JS page in a private S3 bucket, served through CloudFront
 - **Sign-in:** a standalone Amazon Cognito user pool with Cognito's managed login pages. No self sign-up; an admin creates each account
 - **API:** API Gateway REST API. Every endpoint requires a Cognito token
-- **Pull:** a Python Lambda, started asynchronously by Refresh, that copies five tables from Planon's OData endpoint into an S3 data bucket and writes a completion marker the page polls for
+- **Pull:** a Python Lambda, started asynchronously by Refresh, that copies four tables from Planon's OData endpoint into an S3 data bucket and writes a completion marker the page polls for
 - **Build:** a Python Lambda, called synchronously by Generate, that builds the report from those tables and returns it as `report.csv`. It refuses while a refresh is running or after one failed, so the tables never come from two different pulls
 - **Secrets:** the Planon login is kept in AWS Secrets Manager, entered after deploy and never in the repo or the template
 - **External dependency:** Planon's OData endpoint (`planon.calpoly.edu`) is the only thing outside AWS
@@ -92,12 +92,12 @@ Change a value and run `cdk deploy` again.
 ## Usage
 
 **Running the report.** Open the page, sign in, and click **Refresh from Planon**. A refresh
-replaces all five tables and shows the row counts when it
+replaces all four tables and shows the row counts when it
 finishes. Then pick a reference date and click **Generate report**. The report shows on the
 page, and **Download CSV** saves it. Refresh again whenever you need newer data.
 
-**How the report is built.** Five Planon tables: `Property`, `PropertyDetails`, `SpaceUsage`,
-`SpaceStandard` and `BaseCodes`. A report row is a **facility**, a group of buildings sharing
+**How the report is built.** Four Planon tables: `Property`, `PropertyDetails`, `SpaceUsage`
+and `BaseCodes`. A report row is a **facility**, a group of buildings sharing
 `PropertyDetails.FreeString13`. That field points at one member, the **anchor**, and every
 descriptive value comes from it. Areas sum across the whole group. Two filters, both from the
 requirements doc: the reference date, and `PropertyDetails.FreeString14` ("Reported to

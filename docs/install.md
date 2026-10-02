@@ -87,7 +87,7 @@ aws cognito-idp admin-delete-user --user-pool-id USER_POOL_ID --username REPLACE
 *The page.*
 
 Open it, sign in, and click **Refresh from Planon**. When it finishes the page lists a row
-count for each of the five tables: that proves the Planon login works and Planon is reachable
+count for each of the four tables: that proves the Planon login works and Planon is reachable
 from AWS. Then pick a reference date and click **Generate report**. A report on screen is the
 end-to-end check.
 

@@ -15,17 +15,21 @@ every member.
 | CATEGORY CODE / DESC | anchor's `PropertyDetails.FreeString8` -> `BaseCodes` -> Code, Name |
 | STATUS CODE / DESC | anchor `Property.FreeString5` -> `BaseCodes` -> Code, Name |
 | OWNER CODE / DESC | anchor's `PropertyDetails.FreeString9` -> `BaseCodes` -> Code, Name |
-| Area 14 (GSF) | sum `PropertyDetails.GrossFloorArea` over every member |
-| Area 15 (ASF) | sum `SpaceUsage.FloorArea` over every member's spaces, filtered |
-| EFFC | Area 15 / Area 14, blank if either is blank or zero |
+| GSF | sum `PropertyDetails.GrossFloorArea` over every member |
+| ASF | sum `SpaceUsage.FloorArea` over every member's spaces that have a CSU SpCd |
+| EFFC | ASF / GSF, blank if either is blank or zero |
 | COMPL DATE | anchor `Property.PurchaseDate`, printed `MM-YYYY` |
 | Center (section header) | anchor `Property.FreeString7` -> `BaseCodes` -> Code, Name |
 
 ## ASF filter
 
-Drop a `SpaceUsage` row unless its `SpaceStandardRef` resolves **and** that
-standard's `ParentRef` resolves, and neither `Code` is `'000'`. `000` is named
-"Nonassignable", which is what makes assignable square feet assignable.
+Drop a `SpaceUsage` row whose `FreeString1` (CSU SpCd, space type) is blank.
+`FreeString1` -> `BaseCodes` (group `SPACE_SPCD`) gives the space type's name,
+e.g. `0095 Dorm-Single`, but only whether it is populated matters for the sum.
+
+This replaced an older rule that dropped rows whose `SpaceStandard`, or its
+parent, had code `000` "Nonassignable". The report no longer reads
+`SpaceStandard`.
 
 ## Which rows count
 
@@ -53,4 +57,5 @@ Names for the slots, from the requirements doc.
 | `Property.FreeString5` | Master plan status |
 | `Property.FreeString7` | CSU center |
 | `Property.FreeString11` | Full name |
-| `Area 14` / `Area 15` | CSU GSF / CSU ASF |
+| `SpaceUsage.FreeString1` | CSU SpCd (space type) |
+| `Area 14` / `Area 15` | CSU GSF / CSU ASF. Planon's own export uses these as the GSF and ASF headers |

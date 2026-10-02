@@ -122,7 +122,7 @@ body {
 
 .hint { margin: 8px 0 0; color: var(--seal-gray); font-size: 13.5px; }
 
-/* The five Planon tables */
+/* The four Planon tables */
 
 .tables { width: 100%; margin-bottom: 14px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .tables th, .tables td { padding: 6px 0; border-bottom: 1px solid var(--rule); text-align: left; }

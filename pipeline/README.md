@@ -15,14 +15,14 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env        # fill in PLANON_USERNAME and PLANON_PASSWORD
 
-for t in Property PropertyDetails SpaceUsage SpaceStandard BaseCodes; do
+for t in Property PropertyDetails SpaceUsage BaseCodes; do
   mkdir -p ../source_data/$t
   python3 planon_odata.py $t --format csv --out ../source_data/$t/$t.csv
 done
 cd ..
 ```
 
-Run it from `connector/`, which is where it looks for `.env`. It writes the five tables into
+Run it from `connector/`, which is where it looks for `.env`. It writes the four tables into
 `source_data/`, which is gitignored. Re-run it whenever you need current data. More on the
 connector: [`connector/README.md`](../connector/README.md).
 

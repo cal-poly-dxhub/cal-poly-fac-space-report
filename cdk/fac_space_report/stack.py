@@ -104,7 +104,7 @@ class FacSpaceReportStack(Stack):
         )
         site_url = f"https://{site.distribution_domain_name}"
 
-        # "S3 data bucket": the current copy of the five tables plus the completion
+        # "S3 data bucket": the current copy of the four tables plus the completion
         # marker. Each pull overwrites the last.
         data_bucket = s3.Bucket(
             self,
@@ -128,12 +128,12 @@ class FacSpaceReportStack(Stack):
         )
 
         # "pull Lambda". Invoked asynchronously by the Refresh endpoint: reads the
-        # Planon login, pulls the five tables over OData, writes them and then the
+        # Planon login, pulls the four tables over OData, writes them and then the
         # completion marker. Planon is outside AWS, so there is nothing to build for it.
         pull_fn = lambda_.Function(
             self,
             "PullFunction",
-            description="Copies the five Planon tables into the data bucket",
+            description="Copies the four Planon tables into the data bucket",
             runtime=RUNTIME,
             architecture=ARCHITECTURE,
             handler="handler.handler",

@@ -3,8 +3,8 @@
 // Everything this page knows about the deployment comes from config.json, which the
 // CDK stack writes next to it: { apiUrl, loginUrl, clientId }.
 
-const TABLES = ["Property", "PropertyDetails", "SpaceUsage", "SpaceStandard", "BaseCodes"];
-const NUMERIC_COLUMNS = new Set(["Area 14", "Area 15", "EFFC"]);
+const TABLES = ["Property", "PropertyDetails", "SpaceUsage", "BaseCodes"];
+const NUMERIC_COLUMNS = new Set(["GSF", "ASF", "EFFC"]);
 const POLL_EVERY_MS = 4000;
 const GIVE_UP_AFTER_MS = 16 * 60 * 1000; // the pull function is stopped at 15 minutes
 const SILENT_TRIED = "silent-sign-in-tried";
