@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Scripts, styles and fonts only from this site. Calls only to AWS: the API and Cognito. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; base-uri 'none'; form-action 'none'">
+  <title>Facility space report | Cal Poly</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23154734'/%3E%3Crect y='13' width='16' height='3' fill='%23BD8B13'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="ribbon">
+    <p class="brand"><span class="brand-name">Cal Poly</span> <span class="brand-app">Facility space report</span></p>
+    <div class="account" id="account" hidden>
+      <span id="account-email"></span>
+      <button type="button" class="ribbon-button" id="sign-out">Sign out</button>
+    </div>
+  </header>
+
+  <main class="gate" id="gate" hidden>
+    <section class="panel" aria-labelledby="gate-title">
+      <h1 class="panel-title" id="gate-title">Sign in</h1>
+      <div class="panel-body">
+        <p class="summary" id="gate-message">This page refreshes the Planon tables and builds the annual CSU facility report from them.</p>
+        <button type="button" class="button primary" id="sign-in">Sign in</button>
+      </div>
+    </section>
+  </main>
+
+  <main class="workbench" id="workbench" hidden>
+    <section class="panel" aria-labelledby="data-title">
+      <h1 class="panel-title" id="data-title">Planon data</h1>
+      <div class="progress" id="refresh-progress" hidden></div>
+      <div class="panel-body">
+        <p class="summary" id="data-summary">Checking the last refresh.</p>
+        <table class="tables">
+          <thead><tr><th scope="col">Table</th><th scope="col" class="num">Rows</th></tr></thead>
+          <tbody id="table-rows"></tbody>
+        </table>
+        <button type="button" class="button" id="refresh">Refresh from Planon</button>
+        <p class="hint">A refresh replaces all four tables with a fresh copy from Planon. It can take several minutes.</p>
+        <details class="deployment">
+          <summary>Deployment details</summary>
+          <dl id="deployment-details"></dl>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel report" aria-labelledby="report-title">
+      <h1 class="panel-title" id="report-title">Facility report</h1>
+      <div class="toolbar">
+        <label for="ref-date">Reference date</label>
+        <input type="date" id="ref-date" required>
+        <button type="button" class="button primary" id="generate">Generate report</button>
+        <button type="button" class="button" id="download" disabled>Download CSV</button>
+      </div>
+      <p class="hint toolbar-hint">The report is a snapshot of Planon as it stood on the reference date.</p>
+      <div class="empty" id="report-empty">
+        <p>No report yet. Choose a reference date and generate one.</p>
+        <p>It is built from the four tables listed under Planon data.</p>
+      </div>
+      <div class="grid-wrap" id="report-wrap" hidden>
+        <table class="grid" id="report-grid"></table>
+      </div>
+      <p class="hint grid-note" id="grid-note" hidden>Subtotal and total rows carry no label in the CSV, which follows Planon's own export layout. The labels here are for reading.</p>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span class="status" id="status" role="status" aria-live="polite">Starting.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
